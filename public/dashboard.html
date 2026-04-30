@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="theme-color" content="#081228" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Demo Dashboard | AI Online Academy</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-mark">AI</span>
+        <div>
+          <h1>AI Online Academy</h1>
+          <p id="dashboardRoleLabel">Demo Dashboard</p>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a href="demo-login.html">Back to demo</a>
+        <a href="index.html">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section demo-section">
+      <div class="container">
+        <div class="dashboard-card">
+          <h2 id="dashboardTitle">Welcome to the demo dashboard</h2>
+          <p id="dashboardDescription">Preview the platform for your selected role.</p>
+          <div class="dashboard-grid" id="dashboardFeatures"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p>© 2026 AI Online Academy</p>
+    </div>
+  </footer>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get('role') || 'teacher';
+    const board = params.get('board') || 'CBSE';
+    const roleTitle = {
+      teacher: 'Teacher Demo',
+      student: 'Student Demo',
+      parent: 'Parent Demo',
+      admin: 'School Admin Demo'
+    };
+    const roleDescription = {
+      teacher: 'Create lessons, exams, and manage your class content.',
+      student: 'View assigned lessons, take practice quizzes, and track progress.',
+      parent: 'Review student progress, homework, and upcoming exams.',
+      admin: 'Manage school users, boards, and view free tier usage.'
+    };
+    const featureItems = {
+      teacher: ['Lesson planner with syllabus support', 'Exam and question bank builder', 'Board-specific resource selector'],
+      student: ['Access lessons by board and grade', 'Practice tests with instant feedback', 'Personal progress tracking'],
+      parent: ['View assignment status', 'Track exam readiness', 'Receive progress summaries'],
+      admin: ['School setup and board selection', 'User role management', 'Free tier and demo monitoring']
+    };
+
+    document.getElementById('dashboardRoleLabel').textContent = `${roleTitle[role]} • ${board}`;
+    document.getElementById('dashboardTitle').textContent = `${roleTitle[role]} Dashboard`;
+    document.getElementById('dashboardDescription').textContent = roleDescription[role];
+
+    const featuresContainer = document.getElementById('dashboardFeatures');
+    featureItems[role].forEach(text => {
+      const card = document.createElement('div');
+      card.className = 'feature-card';
+      card.innerHTML = `<h3>${text}</h3>`;
+      featuresContainer.appendChild(card);
+    });
+  </script>
+</body>
+</html>

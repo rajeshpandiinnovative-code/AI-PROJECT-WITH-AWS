@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="theme-color" content="#081228" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>School Login | AI Online Academy</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-mark">AI</span>
+        <div>
+          <h1>AI Online Academy</h1>
+          <p>School management dashboard</p>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section demo-section">
+      <div class="container demo-grid">
+        <div class="demo-copy">
+          <p class="eyebrow">School Administrator</p>
+          <h2>School Management Login</h2>
+          <p>Login as a school administrator to manage users, courses, and track your institution's free tier usage.</p>
+          <div class="demo-meta">
+            <div><strong>For</strong><span>School Administrators & Principals</span></div>
+            <div><strong>Features</strong><span>User management, board selection, usage monitoring</span></div>
+          </div>
+        </div>
+
+        <form class="demo-card" id="schoolLoginForm">
+          <div class="field-group">
+            <label for="schoolName">School Name</label>
+            <input type="text" id="schoolName" required placeholder="Enter your school name">
+          </div>
+
+          <div class="field-group">
+            <label for="schoolEmail">Email Address</label>
+            <input type="email" id="schoolEmail" required placeholder="Enter school email">
+          </div>
+
+          <div class="field-group">
+            <label for="schoolPassword">Password</label>
+            <input type="password" id="schoolPassword" required placeholder="Enter password">
+          </div>
+
+          <div class="field-group">
+            <label for="schoolBoard">Select Board</label>
+            <select id="schoolBoard" required>
+              <option value="">Choose your board</option>
+              <option value="CBSE">CBSE</option>
+              <option value="ICSE">ICSE</option>
+              <option value="State Board">State Board</option>
+              <option value="Matric">Matric</option>
+              <option value="IB">IB</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Login to School Dashboard</button>
+          <p class="demo-note">Secure login for school administrators. New school? <a href="#" style="color: var(--accent); text-decoration: underline;">Request access</a></p>
+          <div id="schoolStatus" class="status-box" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p>© 2026 AI Online Academy — School Management.</p>
+    </div>
+  </footer>
+
+  <script src="school-login.js"></script>
+</body>
+</html>

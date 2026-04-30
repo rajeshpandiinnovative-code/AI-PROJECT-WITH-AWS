@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="theme-color" content="#081228" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Teacher Login | AI Online Academy</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-mark">AI</span>
+        <div>
+          <h1>AI Online Academy</h1>
+          <p>Teacher platform</p>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section demo-section">
+      <div class="container demo-grid">
+        <div class="demo-copy">
+          <p class="eyebrow">Educator Access</p>
+          <h2>Teacher Login</h2>
+          <p>Access your personal dashboard to create lesson plans, manage exams, and engage with your students.</p>
+          <div class="demo-meta">
+            <div><strong>For</strong><span>Educators & Teachers</span></div>
+            <div><strong>Features</strong><span>Lesson planning, exam creation, student engagement, syllabus alignment</span></div>
+          </div>
+        </div>
+
+        <form class="demo-card" id="teacherLoginForm">
+          <div class="field-group">
+            <label for="teacherName">Full Name</label>
+            <input type="text" id="teacherName" required placeholder="Enter your full name">
+          </div>
+
+          <div class="field-group">
+            <label for="teacherEmail">Email Address</label>
+            <input type="email" id="teacherEmail" required placeholder="Enter your email">
+          </div>
+
+          <div class="field-group">
+            <label for="teacherPassword">Password</label>
+            <input type="password" id="teacherPassword" required placeholder="Enter password">
+          </div>
+
+          <div class="field-group">
+            <label for="teacherSchool">School Name</label>
+            <input type="text" id="teacherSchool" required placeholder="Enter your school name">
+          </div>
+
+          <div class="field-group">
+            <label for="teacherGrade">Grade/Class</label>
+            <select id="teacherGrade" required>
+              <option value="">Select your grade</option>
+              <option value="Grade 1">Grade 1</option>
+              <option value="Grade 2">Grade 2</option>
+              <option value="Grade 3">Grade 3</option>
+              <option value="Grade 4">Grade 4</option>
+              <option value="Grade 5">Grade 5</option>
+              <option value="Grade 6">Grade 6</option>
+              <option value="Grade 7">Grade 7</option>
+              <option value="Grade 8">Grade 8</option>
+              <option value="Grade 9">Grade 9</option>
+              <option value="Grade 10">Grade 10</option>
+              <option value="Grade 11">Grade 11</option>
+              <option value="Grade 12">Grade 12</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Login to Teacher Dashboard</button>
+          <p class="demo-note">Secure login for educators. Don't have an account? <a href="#" style="color: var(--accent); text-decoration: underline;">Create one</a></p>
+          <div id="teacherStatus" class="status-box" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p>© 2026 AI Online Academy — Teacher Portal.</p>
+    </div>
+  </footer>
+
+  <script src="teacher-login.js"></script>
+</body>
+</html>

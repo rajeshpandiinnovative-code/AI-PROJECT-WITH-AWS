@@ -1,0 +1,21 @@
+{
+  "name": "ai-online-academy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Online Academy - SaaS platform for schools with free tier support and student onboarding.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.4",
+    "lowdb": "^1.0.0",
+    "shortid": "^2.2.16"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="theme-color" content="#081228" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Demo Signup | AI Online Academy</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-mark">AI</span>
+        <div>
+          <h1>AI Online Academy</h1>
+          <p>Demo signup for every role — school admin, teacher, student, parent.</p>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section demo-section">
+      <div class="container demo-grid">
+        <div class="demo-copy">
+          <p class="eyebrow">Demo access</p>
+          <h2>Try the platform as a demo user</h2>
+          <p>Select a role and board to preview the experience. Provide your name and phone to track demo usage.</p>
+          <div class="demo-meta">
+            <div><strong>All roles</strong><span> School admin, teacher, student, parent</span></div>
+            <div><strong>Boards</strong><span>CBSE, ICSE, State Board, Matric, IB</span></div>
+          </div>
+        </div>
+
+        <form class="demo-card" id="demoLoginForm">
+          <div class="field-group">
+            <label for="name">Your name</label>
+            <input type="text" id="name" required placeholder="Enter your full name">
+          </div>
+
+          <div class="field-group">
+            <label for="phone">Phone number</label>
+            <input type="tel" id="phone" required placeholder="Enter your phone number">
+          </div>
+
+          <div class="field-group">
+            <label for="role">Choose your role</label>
+            <select id="role" required>
+              <option value="teacher">Teacher</option>
+              <option value="student">Student</option>
+              <option value="parent">Parent</option>
+              <option value="admin">School Admin</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="board">Choose board</label>
+            <select id="board" required>
+              <option value="CBSE">CBSE</option>
+              <option value="ICSE">ICSE</option>
+              <option value="State Board">State Board</option>
+              <option value="Matric">Matric</option>
+              <option value="IB">IB</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Signup for demo</button>
+          <p class="demo-note">This demo signup lets you preview the experience across roles and boards. We track usage to improve the platform.</p>
+          <div id="demoStatus" class="status-box" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p>© 2026 AI Online Academy — Demo signup for all roles.</p>
+    </div>
+  </footer>
+
+  <script src="demo.js"></script>
+</body>
+</html>
