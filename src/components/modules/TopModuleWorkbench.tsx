@@ -26,6 +26,204 @@ type ChatMessage = {
   content: string;
 };
 
+type ChallengeQuestion = {
+  id: number;
+  prompt: string;
+  options: string[];
+  answer: string;
+  explanation: string;
+};
+
+type ModuleBlueprint = {
+  focus: string;
+  practiceTask: string;
+  challengeTheme: string;
+  lessonTips: string[];
+};
+
+const MODULE_BLUEPRINTS: Record<string, ModuleBlueprint> = {
+  "speed-tricks": {
+    focus: "Timed solving habits and shortcut selection",
+    practiceTask: "Solve 10 mixed arithmetic problems under a self-set timer.",
+    challengeTheme: "Pacing and accuracy sprint",
+    lessonTips: [
+      "Pick the shortest valid method, not the fanciest method.",
+      "Skip and return within 20 seconds if stuck.",
+      "Always reserve a final verification minute.",
+    ],
+  },
+  "memory-techniques": {
+    focus: "Retention using chunking and spaced repetition",
+    practiceTask: "Create 5 memory hooks for one chapter and revise after 2 hours.",
+    challengeTheme: "Recall under pressure",
+    lessonTips: [
+      "Turn facts into stories with visual anchors.",
+      "Use 3 quick recalls: immediate, 2-hour, next-day.",
+      "Write without seeing notes to strengthen memory.",
+    ],
+  },
+  "handwriting-improvement": {
+    focus: "Legibility, spacing, and writing speed",
+    practiceTask: "Write one paragraph in 5 minutes with uniform spacing.",
+    challengeTheme: "Readable-speed writing test",
+    lessonTips: [
+      "Keep consistent letter height.",
+      "Leave clean word spacing for easier evaluation.",
+      "Underline key terms with straight strokes only.",
+    ],
+  },
+  "neet-jee-daily-mcqs": {
+    focus: "Daily exam-style MCQ consistency",
+    practiceTask: "Attempt 15 MCQs and review every wrong answer reason.",
+    challengeTheme: "Daily MCQ challenge",
+    lessonTips: [
+      "Track accuracy per chapter, not just total score.",
+      "Avoid guess-heavy attempts early in prep.",
+      "Review tricky options after each set.",
+    ],
+  },
+  "tnpsc-prep": {
+    focus: "State-focused exam readiness",
+    practiceTask: "Practice one TNPSC topic with current affairs linkage.",
+    challengeTheme: "TNPSC concept check",
+    lessonTips: [
+      "Connect static topics to recent events.",
+      "Use Tamil + English terminology mapping.",
+      "Revise short facts daily in 10-minute bursts.",
+    ],
+  },
+  "rank-predictor": {
+    focus: "Performance trend interpretation",
+    practiceTask: "Record 3 recent scores and identify trend direction.",
+    challengeTheme: "Trend confidence estimator",
+    lessonTips: [
+      "Consistency is a stronger rank signal than one high score.",
+      "Watch weak-topic variance across tests.",
+      "Adjust plan weekly, not monthly.",
+    ],
+  },
+  "weak-area-detection": {
+    focus: "Topic-level diagnostic learning",
+    practiceTask: "List 3 weak topics and assign corrective actions.",
+    challengeTheme: "Weak-topic recovery plan",
+    lessonTips: [
+      "Find root cause: concept gap vs speed issue.",
+      "Patch one weak topic fully before switching.",
+      "Re-test weak topics within 72 hours.",
+    ],
+  },
+  "voice-tutor": {
+    focus: "Conversational doubt resolution",
+    practiceTask: "Explain one concept aloud in under 60 seconds.",
+    challengeTheme: "Audio-style concept clarity",
+    lessonTips: [
+      "Speak concept in plain language first.",
+      "Use one example + one counterexample.",
+      "Summarize in one final takeaway sentence.",
+    ],
+  },
+  "ai-notes-generator": {
+    focus: "High-quality short notes creation",
+    practiceTask: "Convert one topic into 7 bullet revision notes.",
+    challengeTheme: "Revision-note quality check",
+    lessonTips: [
+      "Write notes for retrieval, not for decoration.",
+      "Use headers: formula, idea, exception.",
+      "Keep each note under two lines.",
+    ],
+  },
+  "ai-quiz-generator": {
+    focus: "Rapid adaptive question practice",
+    practiceTask: "Generate 10 self-quiz prompts from your notes.",
+    challengeTheme: "Adaptive quiz round",
+    lessonTips: [
+      "Mix easy, medium, and hard questions.",
+      "Convert mistakes into new quiz questions.",
+      "Reattempt incorrect questions after review.",
+    ],
+  },
+  "public-speaking": {
+    focus: "Confident communication and stage clarity",
+    practiceTask: "Record a 2-minute topic speech and self-review.",
+    challengeTheme: "Confidence challenge",
+    lessonTips: [
+      "Open with one clear hook sentence.",
+      "Use pause, not filler words.",
+      "Close with one memorable message.",
+    ],
+  },
+  "coding-for-kids": {
+    focus: "Logic building and computational thinking",
+    practiceTask: "Write pseudo-steps for one simple daily process.",
+    challengeTheme: "Logic builder challenge",
+    lessonTips: [
+      "Break big problem into tiny steps.",
+      "Use if-then reasoning in plain language.",
+      "Test with one example input.",
+    ],
+  },
+  robotics: {
+    focus: "Hands-on STEM problem solving",
+    practiceTask: "Design one sensor-action flow for a basic bot.",
+    challengeTheme: "Robotics design challenge",
+    lessonTips: [
+      "Define input, process, output clearly.",
+      "Prototype quickly before optimization.",
+      "Measure and iterate with evidence.",
+    ],
+  },
+  "financial-literacy": {
+    focus: "Budgeting and money decision fundamentals",
+    practiceTask: "Create a 7-day spending budget with savings target.",
+    challengeTheme: "Money planning challenge",
+    lessonTips: [
+      "Track needs vs wants separately.",
+      "Always allocate fixed savings first.",
+      "Review budget leak points weekly.",
+    ],
+  },
+  "focus-exercises": {
+    focus: "Concentration and distraction control",
+    practiceTask: "Run two 25-minute focus sessions with a break log.",
+    challengeTheme: "Attention stamina challenge",
+    lessonTips: [
+      "Study in short deep-focus blocks.",
+      "Keep phone physically away in sessions.",
+      "Start with the hardest task first.",
+    ],
+  },
+  "exam-stress-management": {
+    focus: "Calm performance under exam pressure",
+    practiceTask: "Use 4-7-8 breathing before one mock test.",
+    challengeTheme: "Calm exam readiness",
+    lessonTips: [
+      "Prepare checklist the night before exam.",
+      "Control breath to control panic spikes.",
+      "Replace negative self-talk with process cues.",
+    ],
+  },
+  "habit-tracker": {
+    focus: "Consistency building through routines",
+    practiceTask: "Track 3 daily habits for one week.",
+    challengeTheme: "Consistency streak challenge",
+    lessonTips: [
+      "Attach new habits to existing routines.",
+      "Start tiny and keep streak unbroken.",
+      "Review streak misses without guilt.",
+    ],
+  },
+  "screen-time-monitor": {
+    focus: "Healthy digital balance for learning",
+    practiceTask: "Set app-wise study and non-study time limits.",
+    challengeTheme: "Balanced screen discipline",
+    lessonTips: [
+      "Define intentional screen slots in advance.",
+      "Use offline revision after each online session.",
+      "Audit total screen time each evening.",
+    ],
+  },
+};
+
 function createQuestion(id: number): VedicQuestion {
   const a = Math.floor(Math.random() * 90) + 10;
   const b = Math.floor(Math.random() * 90) + 10;
@@ -744,17 +942,176 @@ function VedicMathsWorkbench() {
   );
 }
 
+function buildChallengeSet(moduleSlug: string, moduleTitle: string): ChallengeQuestion[] {
+  const base = MODULE_BLUEPRINTS[moduleSlug];
+  const focus = base?.focus ?? `${moduleTitle} core concepts`;
+  return [
+    {
+      id: 1,
+      prompt: `Which habit best improves ${focus.toLowerCase()}?`,
+      options: ["Random practice", "Consistent tracked practice", "No revision", "Last-minute cramming"],
+      answer: "Consistent tracked practice",
+      explanation: "Consistency with tracking gives measurable growth and correction loops.",
+    },
+    {
+      id: 2,
+      prompt: "What should you do after making a mistake?",
+      options: ["Ignore it", "Blame difficulty", "Log cause and fix strategy", "Switch topic immediately"],
+      answer: "Log cause and fix strategy",
+      explanation: "Mistake analysis converts weak spots into specific improvement actions.",
+    },
+    {
+      id: 3,
+      prompt: "Best revision strategy for retention is:",
+      options: ["One long session", "Spaced short revision", "No recall test", "Only passive reading"],
+      answer: "Spaced short revision",
+      explanation: "Spaced revision improves long-term memory and practical recall speed.",
+    },
+  ];
+}
+
+function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: string; moduleTitle: string }) {
+  const blueprint = MODULE_BLUEPRINTS[moduleSlug] ?? {
+    focus: `${moduleTitle} practical mastery`,
+    practiceTask: `Complete one guided activity in ${moduleTitle}.`,
+    challengeTheme: `${moduleTitle} confidence challenge`,
+    lessonTips: [
+      "Start with fundamentals and examples.",
+      "Practice in short, consistent loops.",
+      "Measure outcomes and refine weekly.",
+    ],
+  };
+
+  const [tab, setTab] = useState<"learn" | "practice" | "challenge">("learn");
+  const [practiceNotes, setPracticeNotes] = useState("");
+  const [practiceDone, setPracticeDone] = useState(false);
+  const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
+  const [challengeQuestions] = useState<ChallengeQuestion[]>(() => buildChallengeSet(moduleSlug, moduleTitle));
+  const [challengeAnswers, setChallengeAnswers] = useState<Record<number, string>>({});
+  const [challengeScore, setChallengeScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    void fetchHistory(moduleSlug).then(setHistory);
+  }, [moduleSlug]);
+
+  const savePractice = async () => {
+    await saveHistory(
+      moduleSlug,
+      moduleTitle,
+      { mode: "practice", notes: practiceNotes },
+      { completed: practiceDone, activity: blueprint.practiceTask },
+    );
+    setHistory(await fetchHistory(moduleSlug));
+  };
+
+  const submitChallenge = async () => {
+    const correct = challengeQuestions.filter((q) => challengeAnswers[q.id] === q.answer).length;
+    setChallengeScore(correct);
+    await saveHistory(
+      moduleSlug,
+      moduleTitle,
+      { mode: "challenge", answers: challengeAnswers },
+      { score: `${correct}/${challengeQuestions.length}`, theme: blueprint.challengeTheme },
+    );
+    setHistory(await fetchHistory(moduleSlug));
+  };
+
+  return (
+    <section className="mt-8 rounded-xl border border-slate-700 bg-slate-950 p-4">
+      <h2 className="text-lg font-semibold text-emerald-300">{moduleTitle}: Complete Learning Module</h2>
+      <p className="mt-1 text-sm text-slate-300">{blueprint.focus}</p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {(["learn", "practice", "challenge"] as const).map((item) => (
+          <button
+            key={item}
+            onClick={() => setTab(item)}
+            className={`rounded-lg px-3 py-2 text-xs font-semibold ${
+              tab === item ? "bg-cyan-500 text-slate-950" : "border border-slate-700 text-cyan-300"
+            }`}
+          >
+            {item.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {tab === "learn" ? (
+        <div className="mt-4 space-y-2">
+          {blueprint.lessonTips.map((tip) => (
+            <div key={tip} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200">
+              {tip}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {tab === "practice" ? (
+        <div className="mt-4 space-y-3">
+          <p className="text-sm text-slate-200">{blueprint.practiceTask}</p>
+          <textarea
+            value={practiceNotes}
+            onChange={(e) => setPracticeNotes(e.target.value)}
+            rows={4}
+            placeholder="Write your practice reflection or solution notes..."
+            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+          />
+          <label className="inline-flex items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" checked={practiceDone} onChange={(e) => setPracticeDone(e.target.checked)} />
+            I completed this practice task.
+          </label>
+          <button onClick={() => void savePractice()} className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">
+            Save Practice Progress
+          </button>
+        </div>
+      ) : null}
+
+      {tab === "challenge" ? (
+        <div className="mt-4 space-y-3">
+          {challengeQuestions.map((q) => (
+            <div key={q.id} className="rounded-lg border border-slate-700 bg-slate-900 p-3">
+              <p className="text-sm font-semibold text-slate-100">
+                Q{q.id}. {q.prompt}
+              </p>
+              <div className="mt-2 grid gap-2">
+                {q.options.map((opt) => (
+                  <label key={opt} className="inline-flex items-center gap-2 text-xs text-slate-300">
+                    <input
+                      type="radio"
+                      name={`q-${q.id}`}
+                      value={opt}
+                      checked={challengeAnswers[q.id] === opt}
+                      onChange={(e) =>
+                        setChallengeAnswers((prev) => ({
+                          ...prev,
+                          [q.id]: e.target.value,
+                        }))
+                      }
+                    />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+          <button onClick={() => void submitChallenge()} className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">
+            Submit Challenge
+          </button>
+          {challengeScore !== null ? (
+            <p className="text-sm text-emerald-300">
+              Score: {challengeScore}/{challengeQuestions.length}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <HistoryPanel title="Recent Module Progress" rows={history} />
+    </section>
+  );
+}
+
 export function TopModuleWorkbench({ moduleSlug, moduleTitle }: TopModuleWorkbenchProps) {
   if (moduleSlug === "ai-study-planner") return <StudyPlannerWorkbench />;
   if (moduleSlug === "homework-helper") return <HomeworkHelperWorkbench />;
   if (moduleSlug === "vedic-maths") return <VedicMathsWorkbench />;
-
-  return (
-    <section className="mt-8 rounded-xl border border-slate-700 bg-slate-950 p-4">
-      <h2 className="text-lg font-semibold text-emerald-300">Module Workbench</h2>
-      <p className="mt-2 text-sm text-slate-300">
-        {moduleTitle} module shell is created. Interactive implementation will be added in the next sprint.
-      </p>
-    </section>
-  );
+  return <UniversalModuleWorkbench moduleSlug={moduleSlug} moduleTitle={moduleTitle} />;
 }
