@@ -21,6 +21,11 @@ type ModuleHistoryRow = {
   outputData: unknown;
 };
 
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 function createQuestion(id: number): VedicQuestion {
   const a = Math.floor(Math.random() * 90) + 10;
   const b = Math.floor(Math.random() * 90) + 10;
@@ -126,6 +131,106 @@ function HistoryPanel({ title, rows }: { title: string; rows: ModuleHistoryRow[]
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function VedicChatPanel({ level }: { level: VedicLevel }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content:
+        "Hi! I am your Vedic Maths AI tutor. Ask me about tricks, shortcuts, or any question from your lesson/exam.",
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const askTutor = async () => {
+    const message = input.trim();
+    if (!message || isLoading) return;
+
+    setError(null);
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: message }]);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/modules/vedic-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          context: `Current level: ${level}`,
+        }),
+      });
+
+      const payload = (await response.json()) as { answer?: string; error?: string };
+      if (!response.ok || !payload.answer) {
+        throw new Error(payload.error ?? "Tutor is unavailable right now.");
+      }
+
+      setMessages((prev) => [...prev, { role: "assistant", content: payload.answer! }]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Tutor request failed";
+      setError(msg);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "I could not answer right now. Please try again in a moment.",
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-6 rounded-xl border border-slate-700 bg-slate-900/60 p-4">
+      <p className="text-sm font-semibold text-cyan-300">AI Vedic Tutor Chatbot</p>
+      <p className="mt-1 text-xs text-slate-400">
+        Ask doubts during lessons or while solving timed exams. Ex: "Teach base-100 multiplication with shortcuts."
+      </p>
+
+      <div className="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-950 p-3">
+        {messages.map((m, idx) => (
+          <div
+            key={`${m.role}-${idx}`}
+            className={`rounded-lg px-3 py-2 text-sm ${
+              m.role === "user" ? "ml-6 bg-cyan-500/20 text-cyan-100" : "mr-6 bg-slate-800 text-slate-200"
+            }`}
+          >
+            <p className="mb-1 text-[10px] uppercase tracking-[0.12em] text-slate-400">{m.role}</p>
+            <p className="whitespace-pre-wrap">{m.content}</p>
+          </div>
+        ))}
+        {isLoading ? <p className="text-xs text-amber-300">Tutor is thinking...</p> : null}
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void askTutor();
+            }
+          }}
+          placeholder="Ask your Vedic Maths doubt..."
+          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+        />
+        <button
+          onClick={() => void askTutor()}
+          disabled={isLoading || !input.trim()}
+          className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-50"
+        >
+          Ask
+        </button>
+      </div>
+      {error ? <p className="mt-2 text-xs text-rose-300">{error}</p> : null}
     </div>
   );
 }
@@ -633,6 +738,7 @@ function VedicMathsWorkbench() {
           {resultSummary ? <p className="mt-1 text-sm text-amber-300">{resultSummary}</p> : null}
         </>
       )}
+      <VedicChatPanel level={activeLevel} />
       <HistoryPanel title="Recent Practice Scores" rows={history} />
     </section>
   );
