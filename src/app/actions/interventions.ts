@@ -1,12 +1,13 @@
 "use server";
 
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { auth } from "@/auth";
 import { db } from "@/src/lib/db";
-import { interventionAuditLogs, interventionDailyDigests, interventionTasks } from "@/src/db/schema";
+import { interventionAuditLogs, interventionTasks } from "@/src/db/schema";
+import { generateDailyDigestForSchool } from "@/src/lib/intervention-digest";
 
 const createInterventionSchema = z.object({
   sourceResultId: z.string().uuid(),
@@ -179,74 +180,9 @@ export async function bulkCompleteOverdueInterventions() {
   revalidatePath("/dashboard");
 }
 
-type DigestStudent = {
-  studentName: string;
-  marks: number;
-  recommendedModule: string;
-};
-
 export async function generateDailyInterventionDigest() {
   const schoolId = await getCurrentSessionSchoolId();
-  const now = new Date();
-  const digestDate = now.toISOString().slice(0, 10);
-  const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const tasks = await db.query.interventionTasks.findMany({
-    where: eq(interventionTasks.schoolId, schoolId),
-    orderBy: [desc(interventionTasks.createdAt)],
-    limit: 1000,
-  });
-
-  const openTasks = tasks.filter((task) => task.status !== "completed");
-  const overdueTasks = openTasks.filter((task) => task.createdAt < threeDaysAgo);
-  const criticalTasks = openTasks.filter((task) => task.createdAt < sevenDaysAgo);
-
-  const byStudent = new Map<string, DigestStudent>();
-  for (const task of openTasks.sort((a, b) => a.marks - b.marks)) {
-    if (!byStudent.has(task.studentName)) {
-      byStudent.set(task.studentName, {
-        studentName: task.studentName,
-        marks: task.marks,
-        recommendedModule: task.recommendedModule,
-      });
-    }
-    if (byStudent.size >= 5) break;
-  }
-
-  const summary = {
-    openCount: openTasks.length,
-    overdueCount: overdueTasks.length,
-    criticalCount: criticalTasks.length,
-    topAtRiskStudents: [...byStudent.values()],
-    generatedAt: now.toISOString(),
-  };
-
-  const [existing] = await db
-    .select({ id: interventionDailyDigests.id })
-    .from(interventionDailyDigests)
-    .where(and(eq(interventionDailyDigests.schoolId, schoolId), eq(interventionDailyDigests.digestDate, digestDate)))
-    .limit(1);
-
-  if (existing) {
-    await db
-      .update(interventionDailyDigests)
-      .set({ summary, updatedAt: new Date() })
-      .where(eq(interventionDailyDigests.id, existing.id));
-  } else {
-    await db.insert(interventionDailyDigests).values({
-      schoolId,
-      digestDate,
-      summary,
-    });
-  }
-
-  await db.insert(interventionAuditLogs).values({
-    schoolId,
-    actionType: "daily_digest_generate",
-    affectedCount: 1,
-    metadata: { digestDate, openCount: openTasks.length, overdueCount: overdueTasks.length, criticalCount: criticalTasks.length },
-  });
+  await generateDailyDigestForSchool(schoolId, "manual");
 
   revalidatePath("/dashboard");
 }
