@@ -9,7 +9,7 @@ type GradeResponse = {
 
 type ScannerProps = {
   onConfirmSave: (studentId: string, examId: string, marks: number) => Promise<void>;
-  /** Pre-filled when session has pilot demo data (see claim-school + pilot-seed). */
+  /** Optional defaults for local/demo onboarding flows. */
   defaultStudentId?: string;
   defaultExamId?: string;
 };
@@ -134,7 +134,10 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
     <section className="w-full max-w-3xl rounded-xl border border-slate-600 bg-[#0F172A]/60 p-4 shadow-sm sm:p-6">
       <h2 className="text-xl font-semibold text-white">Answer sheet workspace</h2>
       <p className="mt-1 text-sm text-slate-400">
-        Use <strong className="font-medium text-slate-300">Start camera</strong>, then <strong className="font-medium text-slate-300">Grade paper</strong>, review the result, and <strong className="font-medium text-slate-300">Confirm &amp; save</strong>. Demo student and exam IDs are prefilled after you claim a school.
+        Use <strong className="font-medium text-slate-300">Start camera</strong>, then{" "}
+        <strong className="font-medium text-slate-300">Grade paper</strong>, review the result, and{" "}
+        <strong className="font-medium text-slate-300">Confirm &amp; save</strong>. In production, enter real
+        student and exam IDs from your school records.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">

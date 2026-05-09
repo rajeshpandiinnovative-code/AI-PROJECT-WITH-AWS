@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/src/lib/db";
+import { isOnboardingDemoSeedEnabled } from "@/src/lib/env";
 import { globalSchools, schools } from "@/src/db/schema";
 import { ensurePilotDemoForSchool } from "@/src/lib/pilot-seed";
 
@@ -84,7 +85,13 @@ export async function POST(req: Request) {
     }
   }
 
-  const { demoStudentId, demoExamId } = await ensurePilotDemoForSchool(schoolId);
+  let demoStudentId: string | null = null;
+  let demoExamId: string | null = null;
+  if (isOnboardingDemoSeedEnabled()) {
+    const demo = await ensurePilotDemoForSchool(schoolId);
+    demoStudentId = demo.demoStudentId;
+    demoExamId = demo.demoExamId;
+  }
 
   return NextResponse.json({
     schoolId,
