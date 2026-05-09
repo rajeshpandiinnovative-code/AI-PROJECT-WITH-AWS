@@ -131,10 +131,15 @@ function HistoryPanel({ title, rows }: { title: string; rows: ModuleHistoryRow[]
 }
 
 function StudyPlannerWorkbench() {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [grade, setGrade] = useState("Class 8");
   const [dailyHours, setDailyHours] = useState(2);
+  const [goal, setGoal] = useState("Weekly mastery");
+  const [examDate, setExamDate] = useState("");
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(["Maths", "Science", "English"]);
+  const [weakSubjects, setWeakSubjects] = useState<string[]>(["Maths"]);
   const [plan, setPlan] = useState<string[]>([]);
+  const [summaryText, setSummaryText] = useState("");
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
 
   const classOptions = useMemo(
@@ -147,6 +152,13 @@ function StudyPlannerWorkbench() {
     [],
   );
 
+  const days = useMemo(() => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], []);
+
+  const revisionWeight = useMemo(() => {
+    if (!selectedSubjects.length) return 0;
+    return Math.min(3, Math.max(1, weakSubjects.length));
+  }, [selectedSubjects.length, weakSubjects.length]);
+
   const buildPlan = (event: FormEvent) => {
     event.preventDefault();
     if (!selectedSubjects.length) {
@@ -154,20 +166,55 @@ function StudyPlannerWorkbench() {
       return;
     }
 
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const cycle = selectedSubjects.length;
+    const revisionMinutes = 20 + revisionWeight * 10;
+    const examTag = examDate ? `Exam focus till ${examDate}` : "No exam date set";
+
     const nextPlan = days.map((day, index) => {
-      const subject = selectedSubjects[index % selectedSubjects.length];
-      const revisionSubject = selectedSubjects[(index + 1) % selectedSubjects.length];
-      return `${day}: ${subject} (${dailyHours}h) + quick revision of ${revisionSubject} (20m).`;
+      const morningSubject = selectedSubjects[index % cycle];
+      const eveningSubject = selectedSubjects[(index + 2) % cycle];
+      const weakFocus = weakSubjects[index % Math.max(weakSubjects.length, 1)] ?? selectedSubjects[index % cycle];
+      const timeSplit = `${Math.max(1, Math.round(dailyHours * 0.6))}h concept + ${Math.max(
+        1,
+        Math.round(dailyHours * 0.4),
+      )}h practice`;
+      return `${day}: ${morningSubject} (${timeSplit}) | Revision ${revisionMinutes}m on ${weakFocus} | Evening quiz: ${eveningSubject}.`;
     });
 
+    const summary = [
+      `AI Study Planner Summary`,
+      `Class: ${grade}`,
+      `Goal: ${goal}`,
+      `Daily Hours: ${dailyHours}`,
+      `Subjects: ${selectedSubjects.join(", ")}`,
+      `Weak Subjects: ${weakSubjects.join(", ") || "None"}`,
+      examTag,
+      `Revision Intensity: Level ${revisionWeight}`,
+      "",
+      ...nextPlan,
+    ].join("\n");
+
     setPlan(nextPlan);
+    setSummaryText(summary);
+    setStep(3);
+
     void saveHistory(
       "ai-study-planner",
       "AI Study Planner",
-      { grade, dailyHours, subjects: selectedSubjects },
-      { weeklyPlan: nextPlan },
+      { grade, goal, examDate, dailyHours, subjects: selectedSubjects, weakSubjects },
+      { revisionWeight, weeklyPlan: nextPlan, summary },
     ).then(async () => setHistory(await fetchHistory("ai-study-planner")));
+  };
+
+  const downloadSummary = () => {
+    if (!summaryText) return;
+    const blob = new Blob([summaryText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "ai-study-plan.txt";
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -176,65 +223,159 @@ function StudyPlannerWorkbench() {
 
   return (
     <section className="mt-8 rounded-xl border border-slate-700 bg-slate-950 p-4">
-      <h2 className="text-lg font-semibold text-emerald-300">Interactive Planner</h2>
+      <h2 className="text-lg font-semibold text-emerald-300">AI Study Planner Pro</h2>
+      <p className="mt-1 text-sm text-slate-300">
+        Multi-step onboarding, revision-balanced weekly engine, and export-ready study summary.
+      </p>
+
+      <div className="mt-4 flex items-center gap-2">
+        {[1, 2, 3].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStep(s as 1 | 2 | 3)}
+            className={`rounded-md px-3 py-1 text-xs font-semibold ${
+              step === s ? "bg-cyan-500 text-slate-950" : "border border-slate-700 text-cyan-300"
+            }`}
+          >
+            Step {s}
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={buildPlan} className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="text-sm text-slate-300">
-          Class
-          <select
-            value={grade}
-            onChange={(e) => setGrade(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
-          >
-            {classOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm text-slate-300">
-          Study Hours / Day
-          <input
-            type="number"
-            min={1}
-            max={8}
-            value={dailyHours}
-            onChange={(e) => setDailyHours(Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
-          />
-        </label>
-        <label className="text-sm text-slate-300 sm:col-span-2">
-          Subjects (dropdown multi-select)
-          <select
-            multiple
-            value={selectedSubjects}
-            onChange={(e) => {
-              const values = Array.from(e.target.selectedOptions).map((option) => option.value);
-              setSelectedSubjects(values);
-            }}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
-          >
-            {subjectOptions.map((subject) => (
-              <option key={subject} value={subject}>
-                {subject}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-slate-400">Hold Ctrl (or Cmd on Mac) to select multiple subjects.</p>
-        </label>
+        {step === 1 ? (
+          <>
+            <label className="text-sm text-slate-300">
+              Class
+              <select
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              >
+                {classOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-slate-300">
+              Study Goal
+              <select
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              >
+                <option value="Weekly mastery">Weekly mastery</option>
+                <option value="Exam preparation">Exam preparation</option>
+                <option value="Competitive readiness">Competitive readiness</option>
+              </select>
+            </label>
+            <label className="text-sm text-slate-300">
+              Study Hours / Day
+              <input
+                type="number"
+                min={1}
+                max={8}
+                value={dailyHours}
+                onChange={(e) => setDailyHours(Number(e.target.value))}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              />
+            </label>
+            <label className="text-sm text-slate-300">
+              Upcoming Exam Date (optional)
+              <input
+                type="date"
+                value={examDate}
+                onChange={(e) => setExamDate(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              />
+            </label>
+          </>
+        ) : null}
+
+        {step === 2 ? (
+          <>
+            <label className="text-sm text-slate-300 sm:col-span-2">
+              Subjects (multi-select)
+              <select
+                multiple
+                value={selectedSubjects}
+                onChange={(e) => {
+                  const values = Array.from(e.target.selectedOptions).map((option) => option.value);
+                  setSelectedSubjects(values);
+                }}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              >
+                {subjectOptions.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm text-slate-300 sm:col-span-2">
+              Weak Subjects (priority revision)
+              <select
+                multiple
+                value={weakSubjects}
+                onChange={(e) => {
+                  const values = Array.from(e.target.selectedOptions).map((option) => option.value);
+                  setWeakSubjects(values);
+                }}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              >
+                {selectedSubjects.map((subject) => (
+                  <option key={subject} value={subject}>
+                    {subject}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-400">Hold Ctrl/Cmd for multi-select.</p>
+            </label>
+          </>
+        ) : null}
+
         <button type="submit" className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">
-          Generate {grade === "" ? "Weekly" : `Class ${grade}`} Plan
+          Generate Smart Weekly Plan
         </button>
       </form>
 
       {plan.length > 0 ? (
-        <ul className="mt-4 space-y-2 text-sm text-slate-200">
-          {plan.map((item) => (
-            <li key={item} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2">
-              {item}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-4 space-y-3">
+          <ul className="space-y-2 text-sm text-slate-200">
+            {plan.map((item) => (
+              <li key={item} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2">
+                {item}
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={downloadSummary}
+              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-cyan-300"
+            >
+              Download Plan Summary
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-cyan-300"
+            >
+              Print Plan
+            </button>
+          </div>
+
+          {summaryText ? (
+            <textarea
+              readOnly
+              value={summaryText}
+              className="h-44 w-full rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-300"
+            />
+          ) : null}
+        </div>
       ) : null}
       <HistoryPanel title="Recent Planner History" rows={history} />
     </section>
