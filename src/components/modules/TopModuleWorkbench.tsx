@@ -11,6 +11,7 @@ type VedicQuestion = {
   id: number;
   prompt: string;
   answer: number;
+  concept: string;
 };
 
 type ModuleHistoryRow = {
@@ -25,8 +26,71 @@ function createQuestion(id: number): VedicQuestion {
   const b = Math.floor(Math.random() * 90) + 10;
   const useMultiply = Math.random() > 0.5;
   return useMultiply
-    ? { id, prompt: `${a} x ${b}`, answer: a * b }
-    : { id, prompt: `${a} + ${b}`, answer: a + b };
+    ? { id, prompt: `${a} x ${b}`, answer: a * b, concept: "Multiplication pattern" }
+    : { id, prompt: `${a} + ${b}`, answer: a + b, concept: "Left-to-right addition" };
+}
+
+type VedicLevel = "beginner" | "intermediate" | "advanced";
+
+const VEDIC_LEVELS: VedicLevel[] = ["beginner", "intermediate", "advanced"];
+
+const VEDIC_LESSONS = [
+  {
+    title: "Base Method (near 10/100)",
+    summary: "Use complements from the base to multiply numbers close to 10, 100, or 1000 quickly.",
+    example: "97 x 96 = (97-4) | (4x6) => 93 | 24 = 9324",
+  },
+  {
+    title: "Left-to-Right Addition",
+    summary: "Add larger place values first to reduce cognitive load and improve speed.",
+    example: "478 + 365 = (400+300) + (70+60) + (8+5) = 843",
+  },
+  {
+    title: "Cross-Check Last Digit",
+    summary: "Verify units digit before finalizing answers to catch common mistakes quickly.",
+    example: "43 x 27 => units should end with 1 (3x7=21), so result must end in 1",
+  },
+] as const;
+
+function createQuestionByLevel(id: number, level: VedicLevel): VedicQuestion {
+  if (level === "beginner") {
+    const a = Math.floor(Math.random() * 40) + 10;
+    const b = Math.floor(Math.random() * 40) + 10;
+    return { id, prompt: `${a} + ${b}`, answer: a + b, concept: "Addition speed" };
+  }
+
+  if (level === "intermediate") {
+    const a = Math.floor(Math.random() * 50) + 25;
+    const b = Math.floor(Math.random() * 50) + 25;
+    const op = Math.random() > 0.5 ? "x" : "+";
+    return op === "x"
+      ? { id, prompt: `${a} x ${b}`, answer: a * b, concept: "Base multiplication" }
+      : { id, prompt: `${a} + ${b}`, answer: a + b, concept: "Addition speed" };
+  }
+
+  const a = Math.floor(Math.random() * 70) + 30;
+  const b = Math.floor(Math.random() * 70) + 30;
+  const c = Math.floor(Math.random() * 30) + 10;
+  const pattern = Math.random() > 0.5;
+  return pattern
+    ? {
+        id,
+        prompt: `(${a} x ${b}) + ${c}`,
+        answer: a * b + c,
+        concept: "Mixed operation under pressure",
+      }
+    : {
+        id,
+        prompt: `${a} + ${b} + ${c}`,
+        answer: a + b + c,
+        concept: "Multi-step addition",
+      };
+}
+
+function timerByLevel(level: VedicLevel): number {
+  if (level === "beginner") return 180;
+  if (level === "intermediate") return 150;
+  return 120;
 }
 
 async function fetchHistory(moduleSlug: string): Promise<ModuleHistoryRow[]> {
@@ -250,29 +314,85 @@ function HomeworkHelperWorkbench() {
 
 function VedicMathsWorkbench() {
   const [lessonComplete, setLessonComplete] = useState(false);
-  const [questions, setQuestions] = useState<VedicQuestion[]>(() =>
-    Array.from({ length: 5 }, (_, i) => createQuestion(i + 1)),
-  );
+  const [activeLevel, setActiveLevel] = useState<VedicLevel>("beginner");
+  const [unlockedLevels, setUnlockedLevels] = useState<VedicLevel[]>(["beginner"]);
+  const [questions, setQuestions] = useState<VedicQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [score, setScore] = useState<number | null>(null);
+  const [examStarted, setExamStarted] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(timerByLevel("beginner"));
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [resultSummary, setResultSummary] = useState<string | null>(null);
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
 
-  const regenerate = () => {
-    setQuestions(Array.from({ length: 5 }, (_, i) => createQuestion(i + 1)));
+  const regenerate = (level: VedicLevel) => {
+    setQuestions(Array.from({ length: 10 }, (_, i) => createQuestionByLevel(i + 1, level)));
     setAnswers({});
     setScore(null);
+    setAccuracy(null);
+    setResultSummary(null);
+    setSecondsLeft(timerByLevel(level));
+  };
+
+  const startExam = () => {
+    regenerate(activeLevel);
+    setExamStarted(true);
+  };
+
+  const unlockNextLevel = (current: VedicLevel) => {
+    const idx = VEDIC_LEVELS.indexOf(current);
+    if (idx < VEDIC_LEVELS.length - 1) {
+      const next = VEDIC_LEVELS[idx + 1];
+      setUnlockedLevels((prev) => (prev.includes(next) ? prev : [...prev, next]));
+    }
   };
 
   const evaluate = () => {
+    if (!questions.length) return;
     const correct = questions.filter((q) => Number(answers[q.id]) === q.answer).length;
+    const currentAccuracy = Math.round((correct / questions.length) * 100);
+    const pass = currentAccuracy >= 70;
+
     setScore(correct);
+    setAccuracy(currentAccuracy);
+    setResultSummary(pass ? "Pass: Great speed and accuracy." : "Not yet pass. Review lesson and retry.");
+    setExamStarted(false);
+
+    if (pass) {
+      unlockNextLevel(activeLevel);
+    }
+
     void saveHistory(
       "vedic-maths",
       "Vedic Maths",
-      { questions: questions.map((q) => q.prompt), answers },
-      { score: `${correct}/5` },
+      {
+        level: activeLevel,
+        timeRemaining: secondsLeft,
+        questions: questions.map((q) => ({ prompt: q.prompt, concept: q.concept })),
+        answers,
+      },
+      {
+        score: `${correct}/${questions.length}`,
+        accuracy: `${currentAccuracy}%`,
+        pass,
+      },
     ).then(async () => setHistory(await fetchHistory("vedic-maths")));
   };
+
+  useEffect(() => {
+    if (!examStarted) return;
+
+    if (secondsLeft <= 0) {
+      evaluate();
+      return;
+    }
+
+    const id = window.setInterval(() => {
+      setSecondsLeft((prev) => prev - 1);
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [examStarted, secondsLeft]);
 
   useEffect(() => {
     void fetchHistory("vedic-maths").then(setHistory);
@@ -281,22 +401,19 @@ function VedicMathsWorkbench() {
   return (
     <section className="mt-8 rounded-xl border border-slate-700 bg-slate-950 p-4">
       <h2 className="text-lg font-semibold text-emerald-300">Vedic Maths: Learn Then Exam</h2>
-      <p className="mt-1 text-sm text-slate-300">Complete lesson tips first, then start your speed practice exam.</p>
+      <p className="mt-1 text-sm text-slate-300">
+        Complete lessons, choose level, and finish timed exam (70% pass threshold) to unlock progression.
+      </p>
 
       {!lessonComplete ? (
         <div className="mt-4 space-y-3">
-          <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200">
-            <p className="font-semibold text-cyan-300">Tip 1: Complement Method (Base 100)</p>
-            <p className="mt-1">For numbers close to 100, use complements to simplify multiplication quickly.</p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200">
-            <p className="font-semibold text-cyan-300">Tip 2: Left-to-Right Addition</p>
-            <p className="mt-1">Add higher place values first to estimate and reduce mental load.</p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200">
-            <p className="font-semibold text-cyan-300">Tip 3: Cross-Check Last Digit</p>
-            <p className="mt-1">Quickly verify the units place to catch common calculation mistakes.</p>
-          </div>
+          {VEDIC_LESSONS.map((lesson) => (
+            <div key={lesson.title} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200">
+              <p className="font-semibold text-cyan-300">{lesson.title}</p>
+              <p className="mt-1">{lesson.summary}</p>
+              <p className="mt-1 text-emerald-300">{lesson.example}</p>
+            </div>
+          ))}
           <button
             onClick={() => setLessonComplete(true)}
             className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950"
@@ -306,33 +423,73 @@ function VedicMathsWorkbench() {
         </div>
       ) : (
         <>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {VEDIC_LEVELS.map((level) => {
+              const unlocked = unlockedLevels.includes(level);
+              return (
+                <button
+                  key={level}
+                  disabled={!unlocked || examStarted}
+                  onClick={() => {
+                    setActiveLevel(level);
+                    regenerate(level);
+                  }}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold ${
+                    activeLevel === level ? "bg-cyan-500 text-slate-950" : "border border-slate-700 text-cyan-300"
+                  } disabled:opacity-40`}
+                >
+                  {level}
+                </button>
+              );
+            })}
+            <button
+              onClick={startExam}
+              disabled={examStarted}
+              className="rounded-lg border border-emerald-500 px-3 py-2 text-xs font-semibold text-emerald-300 disabled:opacity-40"
+            >
+              Start Timed Exam
+            </button>
+          </div>
+
+          {examStarted ? (
+            <p className="mt-3 text-sm font-semibold text-amber-300">Time Left: {secondsLeft}s</p>
+          ) : null}
+
           <div className="mt-4 space-y-3">
             {questions.map((q) => (
               <label key={q.id} className="block rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm">
                 <span className="text-slate-200">
                   Q{q.id}: {q.prompt}
                 </span>
+                <span className="ml-2 text-xs text-emerald-300">({q.concept})</span>
                 <input
                   value={answers[q.id] ?? ""}
                   onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
                   className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
                   placeholder="Enter answer"
+                  disabled={!examStarted}
                 />
               </label>
             ))}
           </div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <button onClick={evaluate} className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">
+            <button
+              onClick={evaluate}
+              disabled={!examStarted}
+              className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40"
+            >
               Check Score
             </button>
             <button
-              onClick={regenerate}
+              onClick={() => regenerate(activeLevel)}
               className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-cyan-300"
             >
               New Set
             </button>
           </div>
-          {score !== null ? <p className="mt-3 text-sm text-emerald-300">Score: {score} / 5</p> : null}
+          {score !== null ? <p className="mt-3 text-sm text-emerald-300">Score: {score} / {questions.length}</p> : null}
+          {accuracy !== null ? <p className="mt-1 text-sm text-cyan-300">Accuracy: {accuracy}%</p> : null}
+          {resultSummary ? <p className="mt-1 text-sm text-amber-300">{resultSummary}</p> : null}
         </>
       )}
       <HistoryPanel title="Recent Practice Scores" rows={history} />
