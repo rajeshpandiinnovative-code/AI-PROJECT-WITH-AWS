@@ -43,6 +43,13 @@
       "when": 1778320200000,
       "tag": "0005_intervention_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778328600000,
+      "tag": "0006_intervention_audit_logs",
+      "breakpoints": true
     }
   ]
 }

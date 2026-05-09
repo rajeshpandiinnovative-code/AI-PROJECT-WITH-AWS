@@ -144,3 +144,19 @@ export const interventionTasks = pgTable(
     statusIdx: index("intervention_tasks_status_idx").on(table.status),
   }),
 );
+
+export const interventionAuditLogs = pgTable(
+  "intervention_audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    schoolId: text("school_id").notNull(),
+    actionType: varchar("action_type", { length: 64 }).notNull(),
+    affectedCount: integer("affected_count").notNull().default(0),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    schoolIdIdx: index("intervention_audit_logs_school_id_idx").on(table.schoolId),
+    actionTypeIdx: index("intervention_audit_logs_action_type_idx").on(table.actionType),
+  }),
+);

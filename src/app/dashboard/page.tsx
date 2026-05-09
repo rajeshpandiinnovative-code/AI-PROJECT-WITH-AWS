@@ -12,7 +12,15 @@ import {
 } from "@/src/app/actions/interventions";
 import { db } from "@/src/lib/db";
 import { allModules } from "@/src/lib/modules";
-import { exams, interventionTasks, moduleHistories, results, schools, students } from "@/src/db/schema";
+import {
+  exams,
+  interventionAuditLogs,
+  interventionTasks,
+  moduleHistories,
+  results,
+  schools,
+  students,
+} from "@/src/db/schema";
 
 import { PilotNav } from "@/src/components/PilotNav";
 
@@ -43,6 +51,14 @@ function buildInterventionAction(moduleTitle: string, avgScore: number | null, t
     return `Start correction loops in ${moduleTitle}: mistake log + next-day re-attempt drills.`;
   }
   return `Maintain guided practice in ${moduleTitle} and increase challenge difficulty gradually.`;
+}
+
+function formatAuditAction(actionType: string): string {
+  if (actionType === "bulk_followup_overdue") return "Bulk follow-up overdue";
+  if (actionType === "bulk_complete_critical") return "Bulk complete critical";
+  if (actionType === "single_assign") return "Single assignment";
+  if (actionType === "single_complete") return "Single completion";
+  return actionType;
 }
 
 export default async function DashboardPage() {
@@ -148,6 +164,11 @@ export default async function DashboardPage() {
   const assignedTaskByResultId = new Map(
     recentInterventions.filter((task) => task.status === "assigned" && task.sourceResultId).map((task) => [task.sourceResultId!, task]),
   );
+  const recentAuditLogs = await db.query.interventionAuditLogs.findMany({
+    where: eq(interventionAuditLogs.schoolId, schoolId),
+    orderBy: [desc(interventionAuditLogs.createdAt)],
+    limit: 8,
+  });
 
   const recentModuleEvents = await db.query.moduleHistories.findMany({
     where: eq(moduleHistories.schoolId, schoolId),
@@ -536,6 +557,32 @@ export default async function DashboardPage() {
                       </button>
                     </form>
                   ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mt-12">
+          <h2 className="text-lg font-semibold text-white">Intervention audit trail</h2>
+          {recentAuditLogs.length === 0 ? (
+            <p className="mt-3 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
+              No intervention actions recorded yet.
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y divide-slate-700/80 rounded-xl border border-slate-700 bg-[#1E293B]">
+              {recentAuditLogs.map((log) => (
+                <li key={log.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-medium text-white">{formatAuditAction(log.actionType)}</p>
+                    <p className="text-xs text-slate-400">
+                      {log.createdAt.toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  </div>
+                  <div className="text-xs text-cyan-200">Affected: {log.affectedCount}</div>
                 </li>
               ))}
             </ul>

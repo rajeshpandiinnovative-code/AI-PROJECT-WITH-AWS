@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { auth } from "@/auth";
 import { db } from "@/src/lib/db";
-import { interventionTasks } from "@/src/db/schema";
+import { interventionAuditLogs, interventionTasks } from "@/src/db/schema";
 
 const createInterventionSchema = z.object({
   sourceResultId: z.string().uuid(),
@@ -49,6 +49,12 @@ export async function assignIntervention(input: z.infer<typeof createInterventio
       recommendedModule: parsed.recommendedModule,
       status: "assigned",
     });
+    await db.insert(interventionAuditLogs).values({
+      schoolId,
+      actionType: "single_assign",
+      affectedCount: 1,
+      metadata: { sourceResultId: parsed.sourceResultId, studentName: parsed.studentName },
+    });
   }
 
   revalidatePath("/dashboard");
@@ -62,6 +68,13 @@ export async function completeIntervention(taskId: string) {
     .update(interventionTasks)
     .set({ status: "completed", updatedAt: new Date() })
     .where(and(eq(interventionTasks.id, parsedTaskId), eq(interventionTasks.schoolId, schoolId)));
+
+  await db.insert(interventionAuditLogs).values({
+    schoolId,
+    actionType: "single_complete",
+    affectedCount: 1,
+    metadata: { taskId: parsedTaskId },
+  });
 
   revalidatePath("/dashboard");
 }
@@ -83,6 +96,12 @@ export async function bulkFollowUpOverdueInterventions() {
     .limit(50);
 
   if (overdueAssigned.length === 0) {
+    await db.insert(interventionAuditLogs).values({
+      schoolId,
+      actionType: "bulk_followup_overdue",
+      affectedCount: 0,
+      metadata: { note: "no-op" },
+    });
     revalidatePath("/dashboard");
     return;
   }
@@ -99,6 +118,13 @@ export async function bulkFollowUpOverdueInterventions() {
         ),
       ),
     );
+
+  await db.insert(interventionAuditLogs).values({
+    schoolId,
+    actionType: "bulk_followup_overdue",
+    affectedCount: overdueAssigned.length,
+    metadata: { limit: 50 },
+  });
 
   revalidatePath("/dashboard");
 }
@@ -120,6 +146,12 @@ export async function bulkCompleteOverdueInterventions() {
     .limit(25);
 
   if (criticalOverdue.length === 0) {
+    await db.insert(interventionAuditLogs).values({
+      schoolId,
+      actionType: "bulk_complete_critical",
+      affectedCount: 0,
+      metadata: { note: "no-op" },
+    });
     revalidatePath("/dashboard");
     return;
   }
@@ -136,6 +168,13 @@ export async function bulkCompleteOverdueInterventions() {
         ),
       ),
     );
+
+  await db.insert(interventionAuditLogs).values({
+    schoolId,
+    actionType: "bulk_complete_critical",
+    affectedCount: criticalOverdue.length,
+    metadata: { limit: 25 },
+  });
 
   revalidatePath("/dashboard");
 }
