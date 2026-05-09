@@ -223,6 +223,11 @@ export default async function DashboardPage() {
     where: eq(interventionDailyDigests.schoolId, schoolId),
     orderBy: [desc(interventionDailyDigests.createdAt)],
   });
+  const digestFreshnessHours = latestDigest
+    ? Math.floor((Date.now() - latestDigest.updatedAt.getTime()) / (1000 * 60 * 60))
+    : null;
+  const digestFreshness =
+    digestFreshnessHours === null ? "missing" : digestFreshnessHours > 30 ? "stale" : "fresh";
 
   const recentModuleEvents = await db.query.moduleHistories.findMany({
     where: eq(moduleHistories.schoolId, schoolId),
@@ -380,6 +385,17 @@ export default async function DashboardPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-300">Daily digest</h2>
               <p className="mt-1 text-xs text-slate-400">Generate and store daily intervention summary for operations review.</p>
             </div>
+            <span
+              className={`rounded-md border px-2 py-1 text-xs font-semibold ${
+                digestFreshness === "fresh"
+                  ? "border-emerald-500/40 text-emerald-300"
+                  : digestFreshness === "stale"
+                    ? "border-amber-500/40 text-amber-300"
+                    : "border-rose-500/40 text-rose-300"
+              }`}
+            >
+              Digest {digestFreshness === "fresh" ? "Fresh" : digestFreshness === "stale" ? "Stale" : "Missing"}
+            </span>
             <form action={generateDailyInterventionDigest}>
               <button
                 type="submit"
@@ -404,6 +420,9 @@ export default async function DashboardPage() {
                 Open: {String((latestDigest.summary as Record<string, unknown>).openCount ?? "--")} · Overdue:{" "}
                 {String((latestDigest.summary as Record<string, unknown>).overdueCount ?? "--")} · Critical:{" "}
                 {String((latestDigest.summary as Record<string, unknown>).criticalCount ?? "--")}
+              </p>
+              <p className="mt-1 text-slate-400">
+                Freshness: {digestFreshnessHours ?? "--"} hour{digestFreshnessHours === 1 ? "" : "s"} since last update
               </p>
               <p className="mt-1 text-slate-400">
                 Updated{" "}
