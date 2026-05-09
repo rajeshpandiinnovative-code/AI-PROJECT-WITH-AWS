@@ -1,0 +1,38 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgT" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A1021"/>
+      <stop offset="1" stop-color="#1A1E44"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" rx="28" fill="url(#bgT)"/>
+  <rect x="30" y="24" width="1220" height="64" rx="16" fill="#0F172A"/>
+  <rect x="60" y="44" width="230" height="22" rx="8" fill="#34D399"/>
+
+  <rect x="40" y="110" width="576" height="570" rx="24" fill="#0F172A"/>
+  <text x="72" y="168" fill="#E2E8F0" font-family="Arial, sans-serif" font-size="40" font-weight="700">Teacher AI Toolkit</text>
+  <text x="72" y="206" fill="#94A3B8" font-family="Arial, sans-serif" font-size="22">Less admin, more teaching impact</text>
+  <rect x="72" y="234" width="512" height="180" rx="18" fill="#111827"/>
+  <rect x="96" y="266" width="190" height="16" rx="8" fill="#22D3EE"/>
+  <rect x="96" y="296" width="452" height="13" rx="6" fill="#64748B"/>
+  <rect x="96" y="320" width="418" height="13" rx="6" fill="#64748B"/>
+  <rect x="96" y="344" width="388" height="13" rx="6" fill="#64748B"/>
+
+  <rect x="72" y="436" width="248" height="216" rx="18" fill="#111827"/>
+  <rect x="342" y="436" width="242" height="216" rx="18" fill="#111827"/>
+  <rect x="96" y="472" width="196" height="12" rx="6" fill="#64748B"/>
+  <rect x="96" y="498" width="168" height="12" rx="6" fill="#64748B"/>
+  <rect x="366" y="472" width="190" height="12" rx="6" fill="#64748B"/>
+  <rect x="366" y="498" width="158" height="12" rx="6" fill="#64748B"/>
+
+  <rect x="640" y="110" width="600" height="570" rx="24" fill="#0F172A"/>
+  <rect x="668" y="138" width="544" height="200" rx="18" fill="#111827"/>
+  <text x="698" y="190" fill="#E2E8F0" font-family="Arial, sans-serif" font-size="26" font-weight="700">Pending Grading Queue</text>
+  <rect x="698" y="214" width="482" height="12" rx="6" fill="#64748B"/>
+  <rect x="698" y="238" width="446" height="12" rx="6" fill="#64748B"/>
+  <rect x="698" y="262" width="398" height="12" rx="6" fill="#64748B"/>
+  <rect x="668" y="358" width="264" height="294" rx="18" fill="#111827"/>
+  <rect x="948" y="358" width="264" height="294" rx="18" fill="#111827"/>
+  <rect x="698" y="390" width="200" height="16" rx="8" fill="#F59E0B"/>
+  <polyline points="980,610 1010,580 1040,590 1070,552 1100,566 1130,520 1160,534 1190,496" fill="none" stroke="#38BDF8" stroke-width="8" stroke-linecap="round"/>
+</svg>

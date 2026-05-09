@@ -34,6 +34,10 @@ function classifyError(message: string) {
     return 422;
   }
 
+  if (message === "MARKING_RUBRIC_MISSING") {
+    return 503;
+  }
+
   return 500;
 }
 

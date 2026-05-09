@@ -1,0 +1,4 @@
+# Replace this file with your UTF-8 CSV export from https://udiseplus.gov.in (after sign-in).
+# Then: npm run import:udiseplus   (or pass --csv and --board-type to import:schools)
+# Lines starting with # are ignored by the importer.
+udise_code,school_name,state,district,blk,pin,mobile_no,mgmt,cat,principal

@@ -20,6 +20,9 @@
 # production
 /build
 
+# assistant / workspace snapshots (local only)
+.workspace-backups/
+
 # misc
 .DS_Store
 *.pem

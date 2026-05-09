@@ -177,9 +177,9 @@ export function ScanPaperPanel({ onConfirmMarks }: ScanPaperPanelProps) {
 
   return (
     <section className="w-full max-w-3xl rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-xl font-semibold">Scan Paper</h2>
+      <h2 className="text-xl font-semibold">Scan paper</h2>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Capture answer sheet, auto-grade with rubric, then confirm final marks.
+        Pinnacle workflow: capture → rubric-based auto-grade → confirm final marks.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">

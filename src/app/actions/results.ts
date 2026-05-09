@@ -84,4 +84,5 @@ export async function updateStudentMarks(
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/scanner");
 }

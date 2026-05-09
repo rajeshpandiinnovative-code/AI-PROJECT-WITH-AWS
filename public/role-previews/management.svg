@@ -1,0 +1,17 @@
+<svg width="800" height="450" viewBox="0 0 800 450" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="450" rx="18" fill="#0B1220"/>
+  <rect x="20" y="20" width="760" height="54" rx="12" fill="#111827"/>
+  <rect x="36" y="36" width="210" height="20" rx="6" fill="#22D3EE"/>
+  <rect x="20" y="94" width="220" height="336" rx="14" fill="#111827"/>
+  <rect x="260" y="94" width="520" height="336" rx="14" fill="#111827"/>
+  <rect x="280" y="114" width="480" height="120" rx="10" fill="#1E293B"/>
+  <rect x="300" y="132" width="210" height="14" rx="5" fill="#A78BFA"/>
+  <rect x="300" y="160" width="440" height="8" rx="4" fill="#475569"/>
+  <rect x="300" y="178" width="380" height="8" rx="4" fill="#475569"/>
+  <rect x="280" y="250" width="245" height="160" rx="10" fill="#1E293B"/>
+  <rect x="535" y="250" width="225" height="160" rx="10" fill="#1E293B"/>
+  <rect x="36" y="108" width="188" height="12" rx="5" fill="#64748B"/>
+  <rect x="36" y="132" width="174" height="10" rx="4" fill="#334155"/>
+  <rect x="36" y="154" width="174" height="10" rx="4" fill="#334155"/>
+  <text x="36" y="404" fill="#94A3B8" font-family="Arial, sans-serif" font-size="18">Management Command Center Preview</text>
+</svg>

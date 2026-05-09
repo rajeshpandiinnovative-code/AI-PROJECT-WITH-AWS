@@ -1,5 +1,10 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { eq } from "drizzle-orm";
+
+import { db } from "@/src/lib/db";
+import { schools } from "@/src/db/schema";
+import { z } from "zod";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
@@ -17,9 +22,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        const trimmed = schoolId.trim();
+        if (!z.string().uuid().safeParse(trimmed).success) {
+          return null;
+        }
+
+        const [row] = await db
+          .select({ id: schools.id })
+          .from(schools)
+          .where(eq(schools.id, trimmed))
+          .limit(1);
+
+        if (!row) {
+          return null;
+        }
+
         return {
-          id: schoolId,
-          schoolId,
+          id: row.id,
+          schoolId: row.id,
         };
       },
     }),
