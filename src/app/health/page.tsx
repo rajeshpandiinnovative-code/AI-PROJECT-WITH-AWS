@@ -154,6 +154,9 @@ export default function HealthPage() {
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
           Set <code className="text-xs">DIGEST_CRON_TOKEN</code> in environment, then schedule one of these commands daily.
         </p>
+        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+          Full rollout runbook: <code className="text-xs">docs/operations/digest-cron-runbook.md</code>
+        </p>
         <div className="mt-3 grid gap-3">
           <div>
             <div className="mb-1 flex items-center justify-between gap-2">
