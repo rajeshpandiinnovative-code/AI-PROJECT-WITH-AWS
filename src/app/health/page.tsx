@@ -13,6 +13,7 @@ type HealthPayload = {
     vision: { ok: boolean; usingVisionApiKey: boolean };
     gemini: { ok: boolean };
     rubric: { ok: boolean };
+    digestAutomation: { ok: boolean; cronTokenConfigured: boolean };
   };
 };
 
@@ -99,6 +100,12 @@ export default function HealthPage() {
         <code className="text-xs">ok</code> means infrastructure is ready; <code className="text-xs">pilotReady</code>{" "}
         is true when you are signed in with a school tenant (<code className="text-xs">schoolId</code> on the JWT).
       </p>
+      {payload?.checks.digestAutomation.ok === false ? (
+        <p className="text-sm text-amber-800 dark:text-amber-200">
+          Digest automation is not ready yet. Configure <code className="text-xs">DIGEST_CRON_TOKEN</code> to enable
+          cron-triggered daily digests.
+        </p>
+      ) : null}
 
       <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Pilot session</h2>
