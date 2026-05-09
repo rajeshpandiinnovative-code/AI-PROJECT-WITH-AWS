@@ -5,7 +5,7 @@ import { exams, students } from "@/src/db/schema";
 
 /**
  * Ensure each claimed school has at least one student and one exam so the scan flow
- * can run end-to-end without manual DB setup.
+ * can run end-to-end without manual DB setup (launch / production-friendly defaults).
  */
 export async function ensurePilotDemoForSchool(schoolId: string): Promise<{
   demoStudentId: string;
@@ -23,11 +23,11 @@ export async function ensurePilotDemoForSchool(schoolId: string): Promise<{
       .insert(students)
       .values({
         schoolId,
-        name: "Pilot demo student",
-        rollNo: "PILOT-001",
+        name: "Demo student (seed)",
+        rollNo: "LAUNCH-001",
       })
       .returning({ id: students.id });
-    if (!created) throw new Error("Failed to create pilot student");
+    if (!created) throw new Error("Failed to create demo student");
     rowStudent = created;
   }
 
@@ -44,11 +44,11 @@ export async function ensurePilotDemoForSchool(schoolId: string): Promise<{
       .insert(exams)
       .values({
         schoolId,
-        name: "Pilot demo assessment",
+        name: "Demo assessment (seed)",
         date: today,
       })
       .returning({ id: exams.id });
-    if (!created) throw new Error("Failed to create pilot exam");
+    if (!created) throw new Error("Failed to create demo exam");
     rowExam = created;
   }
 

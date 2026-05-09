@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { createModuleHistory, listModuleHistory } from "@/src/db/queries";
 import { createTenantContext } from "@/src/db/tenant-context";
+import { isPaidSubscriptionEnforced, paidAccessGuardResponse, sessionHasPaidAccess } from "@/src/lib/subscription";
 
 const createHistorySchema = z.object({
   moduleSlug: z.string().min(1).max(128),
@@ -14,7 +15,12 @@ const createHistorySchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const tenant = createTenantContext(await auth());
+    const session = await auth();
+    const blocked = await paidAccessGuardResponse(session);
+    if (blocked) {
+      return blocked;
+    }
+    const tenant = createTenantContext(session);
     const payload = await request.json();
     const parsed = createHistorySchema.safeParse(payload);
 
@@ -33,7 +39,18 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const tenant = createTenantContext(await auth());
+    const session = await auth();
+    const schoolId = session?.user?.schoolId?.trim();
+    /** Guests and users before onboarding have no tenant — still allow browsing modules with empty history. */
+    if (!schoolId) {
+      return NextResponse.json({ data: [] }, { status: 200 });
+    }
+
+    if (isPaidSubscriptionEnforced() && !(await sessionHasPaidAccess(session))) {
+      return NextResponse.json({ data: [] }, { status: 200 });
+    }
+
+    const tenant = createTenantContext(session);
     const { searchParams } = new URL(request.url);
     const moduleSlug = searchParams.get("moduleSlug");
     const limitParam = searchParams.get("limit");

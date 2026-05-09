@@ -28,6 +28,7 @@ import {
   UserCircle2,
   Wallet,
 } from "lucide-react";
+import { DemoLeadCapture } from "@/src/components/DemoLeadCapture";
 import { modulePillars, type LearningModule, type ModulePillar } from "@/src/lib/modules";
 
 const CONTACT_NUMBER = "9535761292";
@@ -132,11 +133,20 @@ export default function Home() {
                 Explore Modules
               </a>
               <Link
+                href="/visualizations"
+                className="rounded-lg border border-cyan-400/60 px-5 py-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/10"
+              >
+                Insight charts
+              </Link>
+              <Link
                 href="/onboarding"
                 className="rounded-lg border border-emerald-400 px-5 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/10"
               >
                 Start School Onboarding
               </Link>
+            </motion.div>
+            <motion.div variants={itemMotion}>
+              <DemoLeadCapture />
             </motion.div>
           </motion.div>
         </div>
@@ -276,7 +286,12 @@ export default function Home() {
               Section 3: The Contact Hub
             </motion.h2>
             <motion.p variants={itemMotion} className="mt-3 max-w-3xl text-slate-300">
-              Nationwide school onboarding is active. TNPSC-focused pathways remain available as part of the broader India launch.
+              Nationwide school onboarding is active. TNPSC-focused pathways remain available as part of the broader India
+              launch. Preview insight charts anytime on{" "}
+              <Link href="/visualizations" className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300">
+                /visualizations
+              </Link>
+              .
             </motion.p>
             <motion.p variants={itemMotion} className="mt-6 text-base font-semibold text-emerald-300">
               Direct Launch Support: Call/WhatsApp {CONTACT_NUMBER}

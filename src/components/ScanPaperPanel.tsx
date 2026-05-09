@@ -132,9 +132,7 @@ export function ScanPaperPanel({ onConfirmMarks }: ScanPaperPanelProps) {
 
       const response = await fetch("/api/scan-paper", {
         method: "POST",
-        headers: {
-          "x-school-id": "demo-school-id",
-        },
+        credentials: "include",
         body: formData,
       });
 
@@ -143,6 +141,12 @@ export function ScanPaperPanel({ onConfirmMarks }: ScanPaperPanelProps) {
         | { error: string; data?: never };
 
       if (!response.ok || "error" in payload) {
+        if (response.status === 402) {
+          if (typeof window !== "undefined") {
+            window.location.assign("/pricing?reason=subscription");
+          }
+          throw new Error("Active subscription required for AI scan.");
+        }
         throw new Error("error" in payload ? payload.error : "Scan failed");
       }
 

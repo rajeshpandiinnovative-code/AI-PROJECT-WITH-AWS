@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import { FormEvent, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+
+import { MODULE_CHALLENGE_BANKS } from "@/src/lib/module-challenge-banks";
 
 type TopModuleWorkbenchProps = {
   moduleSlug: string;
@@ -41,6 +44,35 @@ type ModuleBlueprint = {
   challengeTheme: string;
   lessonTips: string[];
 };
+
+function SpeakLessonTips({ tips }: { tips: string[] }) {
+  const speechReady = useSyncExternalStore(
+    () => () => {},
+    () => typeof window !== "undefined" && typeof window.speechSynthesis !== "undefined",
+    () => false,
+  );
+
+  const speak = () => {
+    if (!speechReady) return;
+    window.speechSynthesis.cancel();
+    const text = tips.join(". ");
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.92;
+    window.speechSynthesis.speak(u);
+  };
+
+  if (!speechReady) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={speak}
+      className="mt-3 rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:bg-violet-950/40"
+    >
+      Listen to lesson tips
+    </button>
+  );
+}
 
 const MODULE_BLUEPRINTS: Record<string, ModuleBlueprint> = {
   "speed-tricks": {
@@ -292,7 +324,8 @@ async function fetchHistory(moduleSlug: string): Promise<ModuleHistoryRow[]> {
   const response = await fetch(`/api/modules/history?moduleSlug=${encodeURIComponent(moduleSlug)}&limit=5`, {
     credentials: "include",
   });
-  if (response.status === 401) throw new Error("AUTH_REQUIRED");
+  /** Server returns 200 + [] for guests; legacy 401 still means “no history”. */
+  if (response.status === 401) return [];
   if (!response.ok) return [];
   const payload = (await response.json()) as { data?: ModuleHistoryRow[] };
   return payload.data ?? [];
@@ -306,12 +339,21 @@ async function saveHistory(moduleSlug: string, moduleTitle: string, inputData: u
     body: JSON.stringify({ moduleSlug, moduleTitle, inputData, outputData }),
   });
   if (response.status === 401) throw new Error("AUTH_REQUIRED");
+  if (response.status === 402) {
+    if (typeof window !== "undefined") {
+      window.location.assign("/pricing?reason=subscription");
+    }
+    throw new Error("SUBSCRIPTION_REQUIRED");
+  }
 }
 
 function AuthRequiredBanner() {
   return (
     <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-950/30 p-3 text-sm text-amber-200">
-      <p className="font-semibold">Sign in and claim your school to save module history.</p>
+      <p className="font-semibold">Save blocked — sign in and link your school to sync progress.</p>
+      <p className="mt-1 text-xs text-amber-200/80">
+        You can keep using Learn / Practice / Challenge in this session; only cloud history needs an account.
+      </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <Link
           href="/api/auth/signin"
@@ -349,14 +391,11 @@ function HistoryPanel({ title, rows }: { title: string; rows: ModuleHistoryRow[]
   );
 }
 
+const VEDIC_CHAT_WELCOME =
+  "Hi! I am your Vedic Maths AI tutor. Ask me about tricks, shortcuts, or any question from your lesson/exam.";
+
 function VedicChatPanel({ level }: { level: VedicLevel }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "Hi! I am your Vedic Maths AI tutor. Ask me about tricks, shortcuts, or any question from your lesson/exam.",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: VEDIC_CHAT_WELCOME }]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -367,25 +406,51 @@ function VedicChatPanel({ level }: { level: VedicLevel }) {
 
     setError(null);
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: message }]);
+    const nextMessages: ChatMessage[] = [...messages, { role: "user", content: message }];
+    setMessages(nextMessages);
     setIsLoading(true);
 
     try {
       const response = await fetch("/api/modules/vedic-chat", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message,
-          context: `Current level: ${level}`,
+          messages: nextMessages,
+          context: `Current practice level: ${level}. Prefer explanations and difficulty appropriate for this level.`,
         }),
       });
 
-      const payload = (await response.json()) as { answer?: string; error?: string };
-      if (!response.ok || !payload.answer) {
-        throw new Error(payload.error ?? "Tutor is unavailable right now.");
+      if (response.status === 402) {
+        if (typeof window !== "undefined") {
+          window.location.assign("/pricing?reason=subscription");
+        }
+        throw new Error("Subscription required to use AI tutor.");
       }
 
-      setMessages((prev) => [...prev, { role: "assistant", content: payload.answer! }]);
+      let payload: { answer?: string; error?: string; blockReason?: string | null };
+      try {
+        payload = (await response.json()) as typeof payload;
+      } catch {
+        throw new Error("Invalid response from tutor service.");
+      }
+
+      if (!response.ok || !payload.answer) {
+        const code = payload.error ?? "";
+        const hint =
+          code === "GEMINI_CONFIG_MISSING"
+            ? "Tutor is not configured (missing Gemini API key)."
+            : code.startsWith("GEMINI_BLOCKED") || payload.blockReason
+              ? "Response was blocked by safety filters. Try rephrasing as a clear math question."
+              : code === "GEMINI_REQUEST_FAILED"
+                ? "The AI service returned an error. Check GEMINI_MODEL / API access."
+                : code.startsWith("GEMINI_FINISH")
+                  ? "The AI could not finish the reply. Try a shorter question."
+                  : code || "Tutor is unavailable right now.";
+        throw new Error(hint);
+      }
+
+      setMessages([...nextMessages, { role: "assistant", content: payload.answer }]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Tutor request failed";
       setError(msg);
@@ -393,7 +458,7 @@ function VedicChatPanel({ level }: { level: VedicLevel }) {
         ...prev,
         {
           role: "assistant",
-          content: "I could not answer right now. Please try again in a moment.",
+          content: "I could not answer right now. Please try again or shorten your question.",
         },
       ]);
     } finally {
@@ -756,6 +821,7 @@ function HomeworkHelperWorkbench() {
       try {
         const res = await fetch("/api/modules/homework-helper", {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             standard,
@@ -764,6 +830,13 @@ function HomeworkHelperWorkbench() {
             question,
           }),
         });
+
+        if (res.status === 402) {
+          if (typeof window !== "undefined") {
+            window.location.assign("/pricing?reason=subscription");
+          }
+          throw new Error("Subscription required.");
+        }
 
         const payload = (await res.json()) as { answer?: string; error?: string };
         if (!res.ok || !payload.answer) {
@@ -1143,7 +1216,7 @@ function VedicMathsWorkbench() {
           {resultSummary ? <p className="mt-1 text-sm text-amber-300">{resultSummary}</p> : null}
         </>
       )}
-      <VedicChatPanel level={activeLevel} />
+      <VedicChatPanel key={activeLevel} level={activeLevel} />
       {authRequired ? <AuthRequiredBanner /> : null}
       <HistoryPanel title="Recent Practice Scores" rows={history} />
     </section>
@@ -1151,6 +1224,17 @@ function VedicMathsWorkbench() {
 }
 
 function buildChallengeSet(moduleSlug: string, moduleTitle: string): ChallengeQuestion[] {
+  const bank = MODULE_CHALLENGE_BANKS[moduleSlug];
+  if (bank?.length) {
+    return bank.map((q) => ({
+      id: q.id,
+      prompt: q.prompt,
+      options: [...q.options],
+      answer: q.answer,
+      explanation: q.explanation,
+    }));
+  }
+
   const base = MODULE_BLUEPRINTS[moduleSlug];
   const focus = base?.focus ?? `${moduleTitle} core concepts`;
   return [
@@ -1217,9 +1301,17 @@ function QuizGeneratorWorkbench() {
     try {
       const response = await fetch("/api/modules/quiz-generator", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ grade, subject, topic, difficulty, questionCount }),
       });
+      if (response.status === 402) {
+        if (typeof window !== "undefined") {
+          window.location.assign("/pricing?reason=subscription");
+        }
+        setLoading(false);
+        return;
+      }
       const payload = (await response.json()) as { data?: { quiz?: GeneratedQuizItem[] } };
       const items = payload.data?.quiz ?? [];
       setQuiz(items);
@@ -1331,9 +1423,17 @@ function NotesGeneratorWorkbench() {
     try {
       const response = await fetch("/api/modules/notes-generator", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ grade, subject, topic, style }),
       });
+      if (response.status === 402) {
+        if (typeof window !== "undefined") {
+          window.location.assign("/pricing?reason=subscription");
+        }
+        setLoading(false);
+        return;
+      }
       const payload = (await response.json()) as { notes?: string };
       const text = payload.notes ?? "Unable to generate notes.";
       setNotes(text);
@@ -1377,6 +1477,10 @@ function NotesGeneratorWorkbench() {
 }
 
 function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: string; moduleTitle: string }) {
+  const { data: session, status: sessionStatus } = useSession();
+  const isGuest = sessionStatus === "unauthenticated";
+  const needsSchool = sessionStatus === "authenticated" && !session?.user?.schoolId;
+
   const blueprint = MODULE_BLUEPRINTS[moduleSlug] ?? {
     focus: `${moduleTitle} practical mastery`,
     practiceTask: `Complete one guided activity in ${moduleTitle}.`,
@@ -1448,8 +1552,29 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
 
   return (
     <section className="mt-8 rounded-xl border border-slate-700 bg-slate-950 p-4">
-      <h2 className="text-lg font-semibold text-emerald-300">{moduleTitle}: Complete Learning Module</h2>
+      <h2 className="text-lg font-semibold text-emerald-300">{moduleTitle}</h2>
       <p className="mt-1 text-sm text-slate-300">{blueprint.focus}</p>
+      <p className="mt-2 text-xs text-slate-500">
+        Learn → Practice → Challenge uses module-specific tips, tasks, and MCQs (not the generic template).
+      </p>
+      {isGuest ? (
+        <p className="mt-2 text-xs text-slate-400">
+          Browsing as a guest — you can use the full module.{" "}
+          <Link href="/api/auth/signin" className="text-cyan-400 underline">
+            Sign in
+          </Link>{" "}
+          and complete school setup to save progress to the cloud.
+        </p>
+      ) : null}
+      {needsSchool ? (
+        <p className="mt-2 text-xs text-amber-200/90">
+          Sign in is active —{" "}
+          <Link href="/onboarding" className="text-amber-300 underline">
+            link your school
+          </Link>{" "}
+          to save module history.
+        </p>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
         {(["learn", "practice", "challenge"] as const).map((item) => (
@@ -1472,6 +1597,7 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
               {tip}
             </div>
           ))}
+          <SpeakLessonTips tips={blueprint.lessonTips} />
         </div>
       ) : null}
 
@@ -1527,9 +1653,21 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
             Submit Challenge
           </button>
           {challengeScore !== null ? (
-            <p className="text-sm text-emerald-300">
-              Score: {challengeScore}/{challengeQuestions.length}
-            </p>
+            <div className="space-y-3">
+              <p className="text-sm text-emerald-300">
+                Score: {challengeScore}/{challengeQuestions.length}
+              </p>
+              <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Why each answer</p>
+                <ul className="mt-2 space-y-2 text-xs text-slate-300">
+                  {challengeQuestions.map((q) => (
+                    <li key={q.id}>
+                      <span className="font-medium text-slate-200">Q{q.id}.</span> {q.explanation}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           ) : null}
         </div>
       ) : null}

@@ -1,16 +1,19 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { count, desc, eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LayoutDashboard, ExternalLink, ScanLine } from "lucide-react";
 
 import { auth } from "@/auth";
+import { assignIntervention, generateDailyInterventionDigest } from "@/src/app/actions/interventions";
+import { DashboardInsightCharts } from "@/src/components/dashboard/DashboardInsightCharts";
+import { PlatformRoleDashboard } from "@/src/components/dashboard/PlatformRoleDashboard";
 import {
-  assignIntervention,
-  bulkCompleteOverdueInterventions,
-  bulkFollowUpOverdueInterventions,
-  completeIntervention,
-  generateDailyInterventionDigest,
-} from "@/src/app/actions/interventions";
+  buildDemoChartsPayload,
+  buildSchoolChartsPayload,
+  parseDemoCookie,
+} from "@/src/lib/dashboard-chart-data";
 import { db } from "@/src/lib/db";
 import { allModules } from "@/src/lib/modules";
 import {
@@ -24,9 +27,23 @@ import {
   students,
 } from "@/src/db/schema";
 
+import { DashboardDevSessionBanner } from "@/src/components/dashboard/DashboardDevSessionBanner";
+import { InterventionTrackerSection } from "@/src/components/InterventionTrackerSection";
 import { PilotNav } from "@/src/components/PilotNav";
+import { isPlatformDashboardWithoutSchoolAllowed } from "@/src/lib/env";
+import { resolveSessionTenantIds } from "@/src/lib/session-tenant";
+import { isPaidSubscriptionEnforced, sessionHasPaidAccess } from "@/src/lib/subscription";
+
+export const metadata: Metadata = {
+  title: "Dashboard · AI Academy Pro",
+  description: "School operations console and role dashboards with insights and exports.",
+};
 
 export const dynamic = "force-dynamic";
+
+type DashboardPageProps = {
+  searchParams: Promise<{ debug?: string }>;
+};
 
 function parseScoreRatio(value: unknown): number | null {
   if (typeof value !== "string") return null;
@@ -65,9 +82,47 @@ function formatAuditAction(actionType: string): string {
   return actionType;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const q = await searchParams;
+  const showDevSessionBanner = process.env.NODE_ENV === "development" && q.debug === "session";
+
   const session = await auth();
-  const schoolId = session?.user?.schoolId;
+  const cookieStore = await cookies();
+  const { schoolId, platformUserId } = resolveSessionTenantIds(session);
+
+  if (!session?.user) {
+    redirect("/login?callbackUrl=%2Fdashboard");
+  }
+
+  if (!schoolId && !platformUserId) {
+    redirect("/login?callbackUrl=%2Fdashboard");
+  }
+
+  if (isPaidSubscriptionEnforced() && !(await sessionHasPaidAccess(session))) {
+    redirect("/pricing?reason=subscription");
+  }
+
+  if (!schoolId && platformUserId && session) {
+    if (!isPlatformDashboardWithoutSchoolAllowed()) {
+      redirect("/onboarding");
+    }
+    const demoRaw = cookieStore.get("aap_demo")?.value;
+    const demo = parseDemoCookie(demoRaw);
+    const charts = buildDemoChartsPayload(demo, session.user?.role, session.user?.email ?? undefined);
+    return (
+      <>
+        <DashboardDevSessionBanner
+          show={showDevSessionBanner}
+          session={session}
+          schoolId={schoolId}
+          platformUserId={platformUserId}
+          variant="platform"
+        />
+        <PlatformRoleDashboard session={session} demo={demo} charts={charts} />
+      </>
+    );
+  }
+
   if (!schoolId) {
     redirect("/onboarding");
   }
@@ -188,6 +243,18 @@ export default async function DashboardPage() {
     if (aRank !== bRank) return bRank - aRank;
     return b.createdAt.getTime() - a.createdAt.getTime();
   });
+
+  const serializedInterventionTasks = sortedInterventionRows.map((task) => ({
+    id: task.id,
+    studentName: task.studentName,
+    examName: task.examName,
+    marks: task.marks,
+    recommendedModule: task.recommendedModule,
+    status: task.status,
+    ageDays: task.ageDays,
+    overdue: task.overdue,
+    criticalDelay: task.criticalDelay,
+  }));
 
   const assignedTaskByResultId = new Map(
     recentInterventions.filter((task) => task.status === "assigned" && task.sourceResultId).map((task) => [task.sourceResultId!, task]),
@@ -333,10 +400,35 @@ export default async function DashboardPage() {
       return (a.avgScore ?? 100) - (b.avgScore ?? 100);
     });
 
+  const completedInterventionCount = interventionRows.filter((t) => t.status === "completed").length;
+
+  const chartPayload = buildSchoolChartsPayload({
+    studentCount,
+    examCount,
+    resultCount,
+    recentMarks: recentResults.map((r) => Number(r.marks ?? 0)),
+    moduleRows: moduleRows.map((r) => ({ title: r.title, attempts: r.attempts })),
+    openInterventionCount,
+    overdueInterventionCount,
+    completedInterventionCount,
+    averageModuleScore,
+    improvingCount,
+    atRiskResultCount,
+    moduleEventsForTrend: recentModuleEvents,
+    now,
+  });
+
   return (
     <div className="min-h-screen bg-[#0F172A] text-zinc-100">
+      <DashboardDevSessionBanner
+        show={showDevSessionBanner}
+        session={session}
+        schoolId={schoolId}
+        platformUserId={platformUserId}
+        variant="school"
+      />
       <header className="border-b border-slate-700/80 bg-[#1E293B]/80 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-4">
           <Link
             href="/"
             className="text-sm font-medium text-slate-300 transition hover:text-white"
@@ -347,7 +439,7 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
         <div className="mb-2 inline-flex items-center gap-2 text-emerald-400">
           <LayoutDashboard className="size-5" aria-hidden />
           <span className="text-xs font-semibold uppercase tracking-wider">School operations console</span>
@@ -372,6 +464,8 @@ export default async function DashboardPage() {
             <dd className="mt-1 text-2xl font-semibold tabular-nums text-white">{resultCount}</dd>
           </div>
         </dl>
+
+        <DashboardInsightCharts payload={chartPayload} />
 
         <section className="mt-8 rounded-xl border border-slate-700 bg-[#1E293B] p-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">Export presets</h2>
@@ -709,135 +803,19 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <section className="mt-12">
-          <h2 className="text-lg font-semibold text-white">Intervention tracker</h2>
-          <div
-            className={`mt-3 rounded-xl border p-3 ${
-              slaStatus === "critical"
-                ? "border-rose-500/40 bg-rose-950/20"
-                : slaStatus === "at-risk"
-                  ? "border-amber-500/40 bg-amber-950/20"
-                  : "border-emerald-500/40 bg-emerald-950/20"
-            }`}
-          >
-            <p
-              className={`text-xs font-semibold uppercase tracking-wide ${
-                slaStatus === "critical" ? "text-rose-300" : slaStatus === "at-risk" ? "text-amber-300" : "text-emerald-300"
-              }`}
-            >
-              Intervention SLA {slaStatus === "critical" ? "Critical" : slaStatus === "at-risk" ? "At Risk" : "Healthy"}
-            </p>
-            <p className="mt-1 text-sm text-slate-200">{slaMessage}</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Overdue rate: {overdueRate}% · Critical delay rate: {criticalRate}%
-            </p>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <a
-              href={trackerExportAllHref}
-              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-            >
-              Download tracker CSV (all)
-            </a>
-            <a
-              href={trackerExport30dHref}
-              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-            >
-              Download tracker CSV (last 30d)
-            </a>
-            <a
-              href={trackerExportHomeworkHref}
-              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-            >
-              Download tracker CSV (Homework Helper)
-            </a>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Open interventions</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-white">{openInterventionCount}</p>
-            </div>
-            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Overdue (&gt;3 days)</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-300">{overdueInterventionCount}</p>
-            </div>
-            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Critical delay (&gt;7 days)</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-rose-300">{criticalDelayCount}</p>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <form action={bulkFollowUpOverdueInterventions}>
-              <button
-                type="submit"
-                disabled={overdueInterventionCount === 0}
-                className="rounded-md border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-200 disabled:opacity-40"
-              >
-                Follow-up all overdue
-              </button>
-            </form>
-            <form action={bulkCompleteOverdueInterventions}>
-              <button
-                type="submit"
-                disabled={criticalDelayCount === 0}
-                className="rounded-md border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-300 disabled:opacity-40"
-              >
-                Complete critical delays
-              </button>
-            </form>
-          </div>
-          {recentInterventions.length === 0 ? (
-            <p className="mt-3 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
-              No intervention tasks yet. Assign from the watchlist to start tracking.
-            </p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {sortedInterventionRows.map((task) => (
-                <li key={task.id} className="rounded-xl border border-slate-700 bg-[#1E293B] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold text-white">{task.studentName}</p>
-                    <div className="flex items-center gap-2">
-                      {task.criticalDelay ? (
-                        <span className="rounded-md border border-rose-500/40 px-2 py-1 text-xs text-rose-300">
-                          Critical Delay
-                        </span>
-                      ) : task.overdue ? (
-                        <span className="rounded-md border border-amber-500/40 px-2 py-1 text-xs text-amber-300">
-                          Overdue
-                        </span>
-                      ) : null}
-                      <span
-                        className={`rounded-md border px-2 py-1 text-xs ${
-                          task.status === "completed"
-                            ? "border-emerald-500/40 text-emerald-300"
-                            : "border-amber-500/40 text-amber-300"
-                        }`}
-                      >
-                        {task.status === "completed" ? "Completed" : "Assigned"}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {task.examName} · {task.marks} marks · {task.recommendedModule}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Age: {task.ageDays} day{task.ageDays === 1 ? "" : "s"}
-                  </p>
-                  {task.status !== "completed" ? (
-                    <form action={completeIntervention.bind(null, task.id)} className="mt-3">
-                      <button
-                        type="submit"
-                        className="rounded-md border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-300"
-                      >
-                        Mark Completed
-                      </button>
-                    </form>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <InterventionTrackerSection
+          tasks={serializedInterventionTasks}
+          slaStatus={slaStatus}
+          slaMessage={slaMessage}
+          overdueRate={overdueRate}
+          criticalRate={criticalRate}
+          openInterventionCount={openInterventionCount}
+          overdueInterventionCount={overdueInterventionCount}
+          criticalDelayCount={criticalDelayCount}
+          trackerExportAllHref={trackerExportAllHref}
+          trackerExport30dHref={trackerExport30dHref}
+          trackerExportHomeworkHref={trackerExportHomeworkHref}
+        />
 
         <section className="mt-12">
           <h2 className="text-lg font-semibold text-white">Intervention audit trail</h2>

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { cleanEnv, getGeminiModel } from "@/src/lib/env";
+import { extractGeminiGeneratedText } from "@/src/lib/gemini-response";
 
 const gradingOutputSchema = z.object({
   marks: z.number().finite(),
@@ -63,15 +64,8 @@ export async function gradeWithRubric(input: GradeWithRubricInput): Promise<Grad
     throw new Error("GEMINI_REQUEST_FAILED");
   }
 
-  const payload = (await response.json()) as {
-    candidates?: Array<{
-      content?: {
-        parts?: Array<{ text?: string }>;
-      };
-    }>;
-  };
-
-  const rawText = payload.candidates?.[0]?.content?.parts?.[0]?.text;
+  const payload: unknown = await response.json();
+  const { text: rawText } = extractGeminiGeneratedText(payload);
   if (!rawText) {
     throw new Error("GEMINI_EMPTY_RESPONSE");
   }

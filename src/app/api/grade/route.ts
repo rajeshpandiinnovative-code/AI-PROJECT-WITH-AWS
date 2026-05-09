@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
-import { gradeWithRubric } from "@/src/lib/grading";
-import { extractTextFromImage } from "@/src/lib/vision";
 import { createTenantContext } from "@/src/db/tenant-context";
+import { gradeWithRubric } from "@/src/lib/grading";
+import { paidAccessGuardResponse } from "@/src/lib/subscription";
+import { extractTextFromImage } from "@/src/lib/vision";
 
 const bodySchema = z.object({
   imageBase64: z.string().min(1),
@@ -46,7 +47,12 @@ export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
 
   try {
-    createTenantContext(await auth());
+    const session = await auth();
+    const blocked = await paidAccessGuardResponse(session);
+    if (blocked) {
+      return blocked;
+    }
+    createTenantContext(session);
 
     let jsonUnknown: unknown;
     try {

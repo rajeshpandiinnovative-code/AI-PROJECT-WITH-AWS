@@ -9,7 +9,7 @@ const root = path.join(__dirname, "..");
 const envLocal = path.join(root, ".env.local");
 
 if (!fs.existsSync(envLocal)) {
-  console.error(`Missing ${path.relative(root, envLocal)} — create it (see .env.example).`);
+  console.error(`Missing ${path.relative(root, envLocal)} — copy .env.example to .env.local and fill values.`);
   process.exit(1);
 }
 
@@ -43,4 +43,7 @@ if (missing.length) {
 }
 
 console.log("Environment check passed (required keys are set).");
+console.log(
+  "Optional (access): PLATFORM_DASHBOARD_WITHOUT_SCHOOL, REQUIRE_PAID_SUBSCRIPTION — defaults are permissive; see src/lib/env.ts and src/lib/subscription.ts",
+);
 process.exit(0);

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { recordResult } from "@/src/db/queries";
 import { createTenantContext } from "@/src/db/tenant-context";
+import { paidAccessGuardResponse } from "@/src/lib/subscription";
 
 type CreateResultBody = {
   studentId: string;
@@ -35,7 +36,12 @@ function parseBody(payload: unknown): CreateResultBody | null {
 
 export async function POST(request: Request) {
   try {
-    const tenant = createTenantContext(await auth());
+    const session = await auth();
+    const blocked = await paidAccessGuardResponse(session);
+    if (blocked) {
+      return blocked;
+    }
+    const tenant = createTenantContext(session);
     const body = parseBody(await request.json());
 
     if (!body) {

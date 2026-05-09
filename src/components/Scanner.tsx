@@ -100,6 +100,12 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
         if (response.status === 401) {
           throw new Error("Session required — use Claim your school, then return to Scan.");
         }
+        if (response.status === 402) {
+          if (typeof window !== "undefined") {
+            window.location.assign("/pricing?reason=subscription");
+          }
+          throw new Error("Active subscription required for grading.");
+        }
         throw new Error("error" in payload ? payload.error : "Grading failed.");
       }
 

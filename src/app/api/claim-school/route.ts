@@ -2,9 +2,11 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/src/lib/db";
-import { isOnboardingDemoSeedEnabled } from "@/src/lib/env";
 import { globalSchools, schools } from "@/src/db/schema";
+import { isOnboardingDemoSeedEnabled } from "@/src/lib/env";
 import { ensurePilotDemoForSchool } from "@/src/lib/pilot-seed";
+
+const TRIAL_MS = 14 * 24 * 60 * 60 * 1000;
 
 type ClaimBody = {
   udiseCode?: string;
@@ -54,6 +56,7 @@ export async function POST(req: Request) {
     schoolName = existing.name;
   } else {
     try {
+      const trialEnd = new Date(Date.now() + TRIAL_MS);
       const [inserted] = await db
         .insert(schools)
         .values({
@@ -61,6 +64,8 @@ export async function POST(req: Request) {
           name: dir.schoolName,
           district: dir.districtName?.trim() || "Unknown",
           board: dir.boardName?.trim() || "MATRIC",
+          subscriptionStatus: "trial",
+          subscriptionTrialEndsAt: trialEnd,
         })
         .returning({ id: schools.id, name: schools.name });
 

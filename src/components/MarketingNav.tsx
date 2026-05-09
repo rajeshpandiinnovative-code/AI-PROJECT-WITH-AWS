@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { Building2, Phone } from "lucide-react";
 
-const WA_URL = `https://wa.me/919535761292?text=${encodeURIComponent(
-  "Hello — Pinnacle Software Solution demo request (Virudhunagar pilot).",
-)}`;
+import { LAUNCH_WHATSAPP_URL } from "@/src/lib/marketing-constants";
 
 /**
  * Sticky nav: logo + Claim School + Login + Demo + Contact (anchor).
@@ -35,13 +33,19 @@ export function MarketingNav() {
           aria-label="Primary"
         >
           <Link
+            href="/visualizations"
+            className="inline-flex min-h-[38px] items-center rounded-lg border border-slate-600 px-2.5 text-xs font-medium text-slate-200 hover:border-cyan-500/40 hover:text-white sm:px-3 sm:text-sm"
+          >
+            Charts
+          </Link>
+          <Link
             href="/dashboard"
             className="inline-flex min-h-[38px] items-center rounded-lg border border-slate-600 px-2.5 text-xs font-medium text-slate-100 hover:bg-slate-800/90 sm:px-3 sm:text-sm"
           >
             Login
           </Link>
           <a
-            href={WA_URL}
+            href={LAUNCH_WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex min-h-[38px] items-center rounded-lg bg-white/10 px-2.5 text-xs font-semibold text-white hover:bg-white/15 sm:px-3 sm:text-sm"

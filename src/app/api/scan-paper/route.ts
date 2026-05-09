@@ -8,6 +8,7 @@ import { gradeWithRubric } from "@/src/lib/grading";
 import { extractTextFromImage } from "@/src/lib/vision";
 import { exams, students } from "@/src/db/schema";
 import { createTenantContext } from "@/src/db/tenant-context";
+import { paidAccessGuardResponse } from "@/src/lib/subscription";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
@@ -74,7 +75,12 @@ export async function POST(request: Request) {
       throw new Error("IMAGE_TOO_LARGE");
     }
 
-    const tenant = createTenantContext(await auth());
+    const session = await auth();
+    const blocked = await paidAccessGuardResponse(session);
+    if (blocked) {
+      return blocked;
+    }
+    const tenant = createTenantContext(session);
 
     const { studentId, examId, maxMarks } = fields.data;
 

@@ -205,8 +205,8 @@ export default function HealthPage() {
 
       {payload?.ok && (payload.launchReady ?? payload.pilotReady) === false ? (
         <p className="text-sm text-amber-800 dark:text-amber-200">
-          Infrastructure is healthy. Sign in with a school ID to set <code className="text-xs">launchReady</code> to{" "}
-          true.
+          Infrastructure is healthy. Sign in with School ID or an email account linked to a tenant so{" "}
+          <code className="text-xs">launchReady</code> becomes true.
         </p>
       ) : null}
 

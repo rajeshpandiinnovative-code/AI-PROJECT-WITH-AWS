@@ -8,6 +8,7 @@ import { auth } from "@/auth";
 import { db } from "@/src/lib/db";
 import { interventionAuditLogs, interventionTasks } from "@/src/db/schema";
 import { generateDailyDigestForSchool } from "@/src/lib/intervention-digest";
+import { assertPaidAccessFromSession } from "@/src/lib/subscription";
 
 const createInterventionSchema = z.object({
   sourceResultId: z.string().uuid(),
@@ -19,6 +20,7 @@ const createInterventionSchema = z.object({
 
 async function getCurrentSessionSchoolId(): Promise<string> {
   const session = await auth();
+  await assertPaidAccessFromSession(session);
   const schoolId = session?.user?.schoolId;
   if (!schoolId) throw new Error("Unauthorized: school context missing in session");
   return schoolId;

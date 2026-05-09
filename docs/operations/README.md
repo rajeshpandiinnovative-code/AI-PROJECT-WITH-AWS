@@ -2,6 +2,10 @@
 
 Use these docs for rollout, automation, and ongoing monitoring of intervention and digest workflows.
 
+## Billing
+
+- `billing.md` — Stripe checkout, webhooks, env vars, trial vs paid.
+
 ## Runbooks
 
 - `digest-cron-runbook.md`

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { auth } from "@/auth";
 import { cleanEnv, getGeminiModel } from "@/src/lib/env";
+import { paidAccessGuardResponse } from "@/src/lib/subscription";
+import { describeGeminiExtractionFailure, extractGeminiGeneratedText } from "@/src/lib/gemini-response";
 
 const bodySchema = z.object({
   standard: z.string().min(1).max(50),
@@ -10,16 +13,14 @@ const bodySchema = z.object({
   question: z.string().min(1).max(2000),
 });
 
-type GeminiPayload = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{ text?: string }>;
-    };
-  }>;
-};
-
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    const blocked = await paidAccessGuardResponse(session);
+    if (blocked) {
+      return blocked;
+    }
+
     const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
     const model = getGeminiModel();
     if (!apiKey) {
@@ -79,13 +80,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const payload = (await response.json()) as GeminiPayload;
-    const answer = payload.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!answer) {
-      return NextResponse.json({ error: "GEMINI_EMPTY_RESPONSE" }, { status: 502 });
+    const payload: unknown = await response.json();
+    const extracted = extractGeminiGeneratedText(payload);
+    if (!extracted.text) {
+      return NextResponse.json({ error: describeGeminiExtractionFailure(extracted) }, { status: 502 });
     }
 
-    return NextResponse.json({ answer }, { status: 200 });
+    return NextResponse.json({ answer: extracted.text }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process request";
     return NextResponse.json({ error: message }, { status: 500 });

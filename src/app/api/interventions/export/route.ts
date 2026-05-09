@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { db } from "@/src/lib/db";
+import { paidAccessGuardResponse } from "@/src/lib/subscription";
 import { interventionAuditLogs, interventionDailyDigests, interventionTasks } from "@/src/db/schema";
 
 function toCsvCell(value: unknown): string {
@@ -23,6 +24,11 @@ export async function GET(request: Request) {
     const schoolId = session?.user?.schoolId;
     if (!schoolId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const blocked = await paidAccessGuardResponse(session);
+    if (blocked) {
+      return blocked;
     }
 
     const { searchParams } = new URL(request.url);

@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Pilot directory (global_schools): master list of schools (e.g. Srivilliputhur / Virudhunagar).
+ * National directory (`global_schools`): UDISE+ sourced rows for onboarding search / claim.
  * Primary key on udise_code uses PostgreSQL’s default B-tree unique index.
  */
 export const globalSchools = pgTable(
@@ -45,11 +45,43 @@ export const schools = pgTable("schools", {
   id: uuid("id").defaultRandom().primaryKey(),
   udiseCode: varchar("udise_code", { length: 32 }).notNull().unique(),
   name: varchar("name", { length: 255 }).notNull(),
-  district: varchar("district", { length: 128 }).notNull().default("Virudhunagar"),
+  district: varchar("district", { length: 128 }).notNull().default("India"),
   board: varchar("board", { length: 128 }).notNull(),
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+  /** Internal trial: `trial`. Paid via Stripe: `trialing` | `active` | `past_due` | `canceled` | `unpaid` | `none`. */
+  subscriptionStatus: varchar("subscription_status", { length: 32 }).notNull().default("trial"),
+  subscriptionTrialEndsAt: timestamp("subscription_trial_ends_at", { withTimezone: true }),
+  subscriptionCurrentPeriodEnd: timestamp("subscription_current_period_end", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/** Individual accounts (student, parent, teacher, etc.) with their own Stripe subscription. */
+export const platformUsers = pgTable(
+  "platform_users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+    role: varchar("role", { length: 32 }).notNull(),
+    displayName: varchar("display_name", { length: 255 }).notNull().default(""),
+    schoolId: uuid("school_id").references(() => schools.id, { onDelete: "set null" }),
+    /** Curriculum board for Stripe Price resolution (with role). */
+    board: varchar("board", { length: 128 }),
+    stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+    stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+    subscriptionStatus: varchar("subscription_status", { length: 32 }).notNull().default("trial"),
+    subscriptionTrialEndsAt: timestamp("subscription_trial_ends_at", { withTimezone: true }),
+    subscriptionCurrentPeriodEnd: timestamp("subscription_current_period_end", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    schoolIdIdx: index("platform_users_school_id_idx").on(table.schoolId),
+    roleIdx: index("platform_users_role_idx").on(table.role),
+  }),
+);
 
 export const students = pgTable(
   "students",
@@ -174,5 +206,37 @@ export const interventionDailyDigests = pgTable(
   (table) => ({
     schoolIdIdx: index("intervention_daily_digests_school_id_idx").on(table.schoolId),
     digestDateIdx: index("intervention_daily_digests_digest_date_idx").on(table.digestDate),
+  }),
+);
+
+/** Page views, auth funnel, and other product telemetry (operational). */
+export const analyticsEvents = pgTable(
+  "analytics_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventType: varchar("event_type", { length: 64 }).notNull(),
+    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    ip: varchar("ip", { length: 45 }),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    typeCreatedIdx: index("analytics_events_type_created_idx").on(table.eventType, table.createdAt),
+  }),
+);
+
+/** Demo / marketing captures from landing page (name + mobile). */
+export const demoLeads = pgTable(
+  "demo_leads",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    mobile: varchar("mobile", { length: 32 }).notNull(),
+    referrer: text("referrer"),
+    path: varchar("path", { length: 512 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    createdIdx: index("demo_leads_created_idx").on(table.createdAt),
   }),
 );

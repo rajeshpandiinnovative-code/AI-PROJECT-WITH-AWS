@@ -1,49 +1,117 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { auth } from "@/auth";
 import { cleanEnv, getGeminiModel } from "@/src/lib/env";
+import { paidAccessGuardResponse } from "@/src/lib/subscription";
+import { describeGeminiExtractionFailure, extractGeminiGeneratedText } from "@/src/lib/gemini-response";
 
-const bodySchema = z.object({
+const chatMessageSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().min(1).max(8000),
+});
+
+const bodySchema = z
+  .object({
+    messages: z.array(chatMessageSchema).min(1).max(32),
+    context: z.string().max(2000).optional(),
+  })
+  .refine((data) => data.messages[data.messages.length - 1]?.role === "user", {
+    message: "Last message must be from the user",
+  });
+
+const legacyBodySchema = z.object({
   message: z.string().min(1).max(1200),
   context: z.string().max(2000).optional(),
 });
 
-type GeminiPayload = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{ text?: string }>;
+const SYSTEM_INSTRUCTION_BASE = [
+  "You are AI Academy Pro's Vedic Maths Tutor.",
+  "Focus on school-level mathematics using Vedic Maths / Indian mental math (sutras, Nikhilam, Urdhva-Tiryak, divisibility tricks, speed arithmetic) unless the learner clearly switches topic.",
+  "Teach in short, clear steps using plain text.",
+  "Prioritize mental math tricks, base methods, and exam speed strategies.",
+  "If asked something unrelated to math learning, briefly acknowledge and redirect to a relevant Vedic Maths idea.",
+  "When answering a new problem, where helpful give: (1) concept summary (2) one worked example (3) one quick practice question with answer hint.",
+  "Use conversation history: resolve references like \"that\", \"the previous question\", or \"why\" based on earlier turns.",
+].join("\n");
+
+type ChatMessage = z.infer<typeof chatMessageSchema>;
+
+function splitLeadingAssistantMessages(messages: ChatMessage[]): { preamble: string; rest: ChatMessage[] } {
+  const preambleParts: string[] = [];
+  let i = 0;
+  while (i < messages.length && messages[i].role === "assistant") {
+    preambleParts.push(messages[i].content);
+    i += 1;
+  }
+  return {
+    preamble: preambleParts.join("\n\n"),
+    rest: messages.slice(i),
+  };
+}
+
+function parseBody(json: unknown): { messages: ChatMessage[]; context?: string } | null {
+  const modern = bodySchema.safeParse(json);
+  if (modern.success) {
+    return modern.data;
+  }
+  const legacy = legacyBodySchema.safeParse(json);
+  if (legacy.success) {
+    return {
+      messages: [{ role: "user", content: legacy.data.message }],
+      context: legacy.data.context,
     };
-  }>;
-};
+  }
+  return null;
+}
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    const blocked = await paidAccessGuardResponse(session);
+    if (blocked) {
+      return blocked;
+    }
+
     const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
     const model = getGeminiModel();
     if (!apiKey) {
       return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
     }
 
-    const parsed = bodySchema.safeParse(await request.json());
-    if (!parsed.success) {
+    let json: unknown;
+    try {
+      json = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const parsed = parseBody(json);
+    if (!parsed) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
-    const { message, context } = parsed.data;
-    const tutorPrompt = [
-      "You are AI Academy Pro's Vedic Maths Tutor.",
-      "Teach in short, student-friendly steps.",
-      "Prioritize mental math tricks, base methods, and exam speed strategies.",
-      "If a student asks a direct question, provide:",
-      "1) concept summary",
-      "2) worked example",
-      "3) one quick practice question with answer hint",
-      "",
+    const { messages, context } = parsed;
+    const { preamble, rest } = splitLeadingAssistantMessages(messages);
+
+    if (rest.length === 0) {
+      return NextResponse.json({ error: "No user messages in conversation" }, { status: 400 });
+    }
+
+    const contents = rest.map((m) => ({
+      role: m.role === "user" ? ("user" as const) : ("model" as const),
+      parts: [{ text: m.content }],
+    }));
+
+    const systemText = [
+      SYSTEM_INSTRUCTION_BASE,
       context ? `Learner context: ${context}` : "",
-      `Student question: ${message}`,
+      preamble
+        ? `The chat UI already displayed this assistant preamble to the learner (do not repeat it verbatim unless asked):\n${preamble}`
+        : "",
     ]
       .filter(Boolean)
-      .join("\n");
+      .join("\n\n");
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -51,10 +119,13 @@ export async function POST(request: Request) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: tutorPrompt }] }],
+          systemInstruction: {
+            parts: [{ text: systemText }],
+          },
+          contents,
           generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 700,
+            temperature: 0.45,
+            maxOutputTokens: 1200,
           },
         }),
       },
@@ -77,13 +148,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const payload = (await response.json()) as GeminiPayload;
-    const answer = payload.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!answer) {
-      return NextResponse.json({ error: "GEMINI_EMPTY_RESPONSE" }, { status: 502 });
+    const payload: unknown = await response.json();
+    const extracted = extractGeminiGeneratedText(payload);
+    if (!extracted.text) {
+      const err = describeGeminiExtractionFailure(extracted);
+      return NextResponse.json(
+        {
+          error: err,
+          finishReason: extracted.finishReason ?? null,
+          blockReason: extracted.blockReason ?? null,
+        },
+        { status: 502 },
+      );
     }
 
-    return NextResponse.json({ answer }, { status: 200 });
+    return NextResponse.json({ answer: extracted.text }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process tutor request";
     return NextResponse.json({ error: message }, { status: 500 });

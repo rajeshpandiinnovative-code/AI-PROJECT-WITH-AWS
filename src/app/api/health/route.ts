@@ -67,6 +67,7 @@ export async function GET() {
     checks.database.ok && checks.vision.ok && checks.gemini.ok && checks.rubric.ok && checks.digestAutomation.ok;
   const launchReady = infrastructureOk && checks.auth.ok;
 
+  // pilotReady: deprecated alias for older probes — prefer launchReady
   return NextResponse.json(
     {
       ok: infrastructureOk,
