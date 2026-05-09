@@ -219,6 +219,10 @@ export default async function DashboardPage() {
         criticalCount,
       };
     });
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const recentDigestRuns = digestRunHistory.filter((run) => run.createdAt >= sevenDaysAgo);
+  const manualDigestRuns7d = recentDigestRuns.filter((run) => run.actionType === "daily_digest_generate").length;
+  const cronDigestRuns7d = recentDigestRuns.filter((run) => run.actionType === "daily_digest_generate_cron").length;
   const latestDigest = await db.query.interventionDailyDigests.findFirst({
     where: eq(interventionDailyDigests.schoolId, schoolId),
     orderBy: [desc(interventionDailyDigests.createdAt)],
@@ -439,6 +443,20 @@ export default async function DashboardPage() {
 
         <section className="mt-8 rounded-xl border border-slate-700 bg-[#1E293B] p-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">Digest run history</h2>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs">
+              <p className="text-slate-400">Runs last 7d</p>
+              <p className="mt-1 font-semibold text-slate-100">{recentDigestRuns.length}</p>
+            </div>
+            <div className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs">
+              <p className="text-slate-400">Manual last 7d</p>
+              <p className="mt-1 font-semibold text-amber-300">{manualDigestRuns7d}</p>
+            </div>
+            <div className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs">
+              <p className="text-slate-400">Cron last 7d</p>
+              <p className="mt-1 font-semibold text-emerald-300">{cronDigestRuns7d}</p>
+            </div>
+          </div>
           {digestRunHistory.length === 0 ? (
             <p className="mt-2 text-xs text-slate-400">No digest run history yet.</p>
           ) : (
