@@ -86,6 +86,27 @@ export default async function DashboardPage() {
     .orderBy(desc(results.createdAt))
     .limit(12);
 
+  const watchlistRows = recentResults
+    .filter((r) => Number(r.marks ?? 0) < 40)
+    .slice(0, 8)
+    .map((r) => {
+      const marks = Number(r.marks ?? 0);
+      let recommendedModule = "AI Study Planner";
+      if (marks < 25) {
+        recommendedModule = "Weak Area Detection";
+      } else if (marks < 30) {
+        recommendedModule = "Homework Helper";
+      } else if (marks < 35) {
+        recommendedModule = "Memory Techniques";
+      }
+      return {
+        ...r,
+        marks,
+        riskBand: marks < 25 ? "Critical" : marks < 33 ? "High" : "Moderate",
+        recommendedModule,
+      };
+    });
+
   const recentModuleEvents = await db.query.moduleHistories.findMany({
     where: eq(moduleHistories.schoolId, schoolId),
     orderBy: [desc(moduleHistories.createdAt)],
@@ -325,6 +346,41 @@ export default async function DashboardPage() {
                     {signal.trend === null ? "--" : signal.trend >= 0 ? `+${signal.trend}%` : `${signal.trend}%`}
                   </p>
                   <p className="mt-2 text-sm text-cyan-200">{signal.action}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mt-12">
+          <h2 className="text-lg font-semibold text-white">Student watchlist</h2>
+          {watchlistRows.length === 0 ? (
+            <p className="mt-3 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
+              No at-risk students in recent submissions. Keep monitoring daily to catch sudden drops early.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {watchlistRows.map((row) => (
+                <li key={row.id} className="rounded-xl border border-slate-700 bg-[#1E293B] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-white">{row.studentName}</p>
+                    <span
+                      className={`rounded-md border px-2 py-1 text-xs font-medium ${
+                        row.riskBand === "Critical"
+                          ? "border-rose-500/50 text-rose-300"
+                          : row.riskBand === "High"
+                            ? "border-amber-500/50 text-amber-300"
+                            : "border-cyan-500/50 text-cyan-300"
+                      }`}
+                    >
+                      {row.riskBand}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {row.examName} · {row.marks} marks ·{" "}
+                    {row.createdAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                  <p className="mt-2 text-sm text-cyan-200">Suggested assignment: {row.recommendedModule}</p>
                 </li>
               ))}
             </ul>
