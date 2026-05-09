@@ -686,32 +686,91 @@ function StudyPlannerWorkbench() {
 }
 
 function HomeworkHelperWorkbench() {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [question, setQuestion] = useState("");
   const [standard, setStandard] = useState("Class 6");
-  const [response, setResponse] = useState<string[]>([]);
+  const [subject, setSubject] = useState("Maths");
+  const [topic, setTopic] = useState("Algebra Basics");
+  const [response, setResponse] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [challengeAnswer, setChallengeAnswer] = useState("");
+  const [challengeFeedback, setChallengeFeedback] = useState<string | null>(null);
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
+
+  const subjectOptions = useMemo(
+    () => ["Maths", "Science", "English", "Social", "Tamil", "Computer Science"],
+    [],
+  );
 
   const buildHelp = (event: FormEvent) => {
     event.preventDefault();
     if (!question.trim()) {
-      setResponse(["Enter a homework question to get guided steps."]);
+      setError("Enter a homework question to get guided steps.");
+      return;
+    }
+    setError(null);
+    setChallengeFeedback(null);
+    setStep(2);
+    setIsLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch("/api/modules/homework-helper", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            standard,
+            subject,
+            topic,
+            question,
+          }),
+        });
+
+        const payload = (await res.json()) as { answer?: string; error?: string };
+        if (!res.ok || !payload.answer) {
+          throw new Error(payload.error ?? "Unable to generate guidance right now.");
+        }
+
+        setResponse(payload.answer);
+
+        await saveHistory(
+          "homework-helper",
+          "Homework Helper",
+          { standard, subject, topic, question },
+          { guidedResponse: payload.answer },
+        );
+        setHistory(await fetchHistory("homework-helper"));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        setError(msg);
+        setStep(1);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  };
+
+  const evaluateChallenge = async () => {
+    const normalized = challengeAnswer.trim().toLowerCase();
+    if (!normalized) {
+      setChallengeFeedback("Write your attempt first.");
       return;
     }
 
-    const generated = [
-      `Step 1 (${standard}): Identify what the question asks in one line.`,
-      "Step 2: Write given values and keywords from the question.",
-      "Step 3: Pick the method/formula and solve one step at a time.",
-      "Step 4: Recheck units/signs and write the final answer clearly.",
-      `Quick Hint: "${question.slice(0, 70)}${question.length > 70 ? "..." : ""}"`,
-    ];
-    setResponse(generated);
-    void saveHistory(
+    const confident = normalized.length >= 18;
+    const feedback = confident
+      ? "Good attempt. You explained enough steps. Improve by adding one final verification line."
+      : "Too short. Add key formula/reasoning in 2-3 lines.";
+    setChallengeFeedback(feedback);
+    setStep(3);
+
+    await saveHistory(
       "homework-helper",
       "Homework Helper",
-      { standard, question },
-      { guidedSteps: generated },
-    ).then(async () => setHistory(await fetchHistory("homework-helper")));
+      { challengeAttempt: challengeAnswer, subject, topic },
+      { challengeFeedback: feedback, pass: confident },
+    );
+    setHistory(await fetchHistory("homework-helper"));
   };
 
   useEffect(() => {
@@ -720,36 +779,101 @@ function HomeworkHelperWorkbench() {
 
   return (
     <section className="mt-8 rounded-xl border border-slate-700 bg-slate-950 p-4">
-      <h2 className="text-lg font-semibold text-emerald-300">Homework Helper Console</h2>
+      <h2 className="text-lg font-semibold text-emerald-300">Homework Helper Pro</h2>
+      <p className="mt-1 text-sm text-slate-300">
+        Guided setup, AI tutor solution, and challenge check to confirm understanding.
+      </p>
+      <div className="mt-4 flex gap-2">
+        {[1, 2, 3].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStep(s as 1 | 2 | 3)}
+            className={`rounded-md px-3 py-1 text-xs font-semibold ${
+              step === s ? "bg-cyan-500 text-slate-950" : "border border-slate-700 text-cyan-300"
+            }`}
+          >
+            Step {s}
+          </button>
+        ))}
+      </div>
       <form onSubmit={buildHelp} className="mt-4 space-y-3">
-        <label className="block text-sm text-slate-300">
-          Grade Level
-          <input
-            value={standard}
-            onChange={(e) => setStandard(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
-          />
-        </label>
-        <label className="block text-sm text-slate-300">
-          Homework Question
-          <textarea
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            rows={4}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
-          />
-        </label>
+        {step === 1 ? (
+          <>
+            <label className="block text-sm text-slate-300">
+              Grade Level
+              <input
+                value={standard}
+                onChange={(e) => setStandard(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              />
+            </label>
+            <label className="block text-sm text-slate-300">
+              Subject
+              <select
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              >
+                {subjectOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm text-slate-300">
+              Topic
+              <input
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              />
+            </label>
+            <label className="block text-sm text-slate-300">
+              Homework Question
+              <textarea
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                rows={4}
+                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+              />
+            </label>
+          </>
+        ) : null}
         <button type="submit" className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">
-          Generate Guided Solution
+          {isLoading ? "Generating..." : "Generate Guided Solution"}
         </button>
       </form>
 
-      {response.length > 0 ? (
-        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-slate-200">
-          {response.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ol>
+      {error ? <p className="mt-2 text-sm text-rose-300">{error}</p> : null}
+
+      {step >= 2 && response ? (
+        <div className="mt-4 rounded-lg border border-slate-700 bg-slate-900 p-3 text-sm text-slate-200">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-300">AI Tutor Response</p>
+          <pre className="whitespace-pre-wrap font-sans">{response}</pre>
+        </div>
+      ) : null}
+
+      {step >= 2 ? (
+        <div className="mt-4 rounded-lg border border-slate-700 bg-slate-900 p-3">
+          <p className="text-sm font-semibold text-cyan-300">Step 3: Quick Understanding Challenge</p>
+          <p className="mt-1 text-xs text-slate-400">
+            In your own words: explain the main concept used in this solution.
+          </p>
+          <textarea
+            value={challengeAnswer}
+            onChange={(e) => setChallengeAnswer(e.target.value)}
+            rows={3}
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          />
+          <button
+            onClick={() => void evaluateChallenge()}
+            className="mt-2 rounded-lg border border-cyan-400 px-3 py-2 text-xs font-semibold text-cyan-300"
+          >
+            Evaluate My Understanding
+          </button>
+          {challengeFeedback ? <p className="mt-2 text-sm text-emerald-300">{challengeFeedback}</p> : null}
+        </div>
       ) : null}
       <HistoryPanel title="Recent Homework Sessions" rows={history} />
     </section>
