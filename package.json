@@ -6,6 +6,7 @@
     "check:env": "node scripts/check-env.cjs",
     "db:migrate": "node scripts/run-migrate.mjs",
     "digest:cron": "node scripts/run-digest-cron.mjs",
+    "verify:interventions:tables": "node scripts/verify-intervention-tables.mjs",
     "import:schools": "tsx scripts/import-schools.ts",
     "import:srivilliputhur": "tsx scripts/import-schools.ts --board-type MATRIC --csv ./data/schools/srivilliputhur-block.csv",
     "import:udiseplus": "tsx scripts/import-schools.ts --board-type MATRIC --csv ./data/schools/udiseplus-official.csv",
