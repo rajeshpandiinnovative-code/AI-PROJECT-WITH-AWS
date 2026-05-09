@@ -167,6 +167,15 @@ export default async function DashboardPage() {
   const openInterventionCount = interventionRows.filter((task) => task.status !== "completed").length;
   const overdueInterventionCount = interventionRows.filter((task) => task.overdue).length;
   const criticalDelayCount = interventionRows.filter((task) => task.criticalDelay).length;
+  const overdueRate = openInterventionCount > 0 ? Math.round((overdueInterventionCount / openInterventionCount) * 100) : 0;
+  const criticalRate = openInterventionCount > 0 ? Math.round((criticalDelayCount / openInterventionCount) * 100) : 0;
+  const slaStatus = criticalDelayCount > 0 ? "critical" : overdueInterventionCount > 0 ? "at-risk" : "healthy";
+  const slaMessage =
+    slaStatus === "critical"
+      ? "Critical delays present. Resolve oldest interventions within 24 hours."
+      : slaStatus === "at-risk"
+        ? "SLA at risk. Schedule targeted follow-ups for overdue students this week."
+        : "SLA healthy. Keep weekly follow-up rhythm to maintain response time.";
   const sortedInterventionRows = [...interventionRows].sort((a, b) => {
     const aRank = a.criticalDelay ? 3 : a.overdue ? 2 : a.status !== "completed" ? 1 : 0;
     const bRank = b.criticalDelay ? 3 : b.overdue ? 2 : b.status !== "completed" ? 1 : 0;
@@ -508,6 +517,27 @@ export default async function DashboardPage() {
 
         <section className="mt-12">
           <h2 className="text-lg font-semibold text-white">Intervention tracker</h2>
+          <div
+            className={`mt-3 rounded-xl border p-3 ${
+              slaStatus === "critical"
+                ? "border-rose-500/40 bg-rose-950/20"
+                : slaStatus === "at-risk"
+                  ? "border-amber-500/40 bg-amber-950/20"
+                  : "border-emerald-500/40 bg-emerald-950/20"
+            }`}
+          >
+            <p
+              className={`text-xs font-semibold uppercase tracking-wide ${
+                slaStatus === "critical" ? "text-rose-300" : slaStatus === "at-risk" ? "text-amber-300" : "text-emerald-300"
+              }`}
+            >
+              Intervention SLA {slaStatus === "critical" ? "Critical" : slaStatus === "at-risk" ? "At Risk" : "Healthy"}
+            </p>
+            <p className="mt-1 text-sm text-slate-200">{slaMessage}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Overdue rate: {overdueRate}% · Critical delay rate: {criticalRate}%
+            </p>
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <a
               href={trackerExportAllHref}
