@@ -226,6 +226,10 @@ export default async function DashboardPage() {
   const automationShare7d =
     recentDigestRuns.length > 0 ? Math.round((cronDigestRuns7d / recentDigestRuns.length) * 100) : 0;
   const automationStatus = automationShare7d >= 80 ? "strong" : automationShare7d >= 40 ? "partial" : "low";
+  const latestCronRun = digestRunHistory.find((run) => run.actionType === "daily_digest_generate_cron") ?? null;
+  const latestCronAgeHours = latestCronRun
+    ? Math.floor((Date.now() - latestCronRun.createdAt.getTime()) / (1000 * 60 * 60))
+    : null;
   const latestDigest = await db.query.interventionDailyDigests.findFirst({
     where: eq(interventionDailyDigests.schoolId, schoolId),
     orderBy: [desc(interventionDailyDigests.createdAt)],
@@ -461,6 +465,20 @@ export default async function DashboardPage() {
               : automationStatus === "partial"
                 ? "· Mix of manual and cron runs; increase scheduler reliability."
                 : "· Mostly manual runs; validate DIGEST_CRON_TOKEN and scheduler setup."}
+          </div>
+          <div className="mt-2 rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-300">
+            {latestCronRun ? (
+              <>
+                Last cron run:{" "}
+                {latestCronRun.createdAt.toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}{" "}
+                · {latestCronAgeHours ?? "--"} hour{latestCronAgeHours === 1 ? "" : "s"} ago
+              </>
+            ) : (
+              "Last cron run: not detected yet."
+            )}
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             <div className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs">
