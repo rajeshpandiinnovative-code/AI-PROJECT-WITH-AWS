@@ -9,16 +9,20 @@ type GradeResponse = {
 
 type ScannerProps = {
   onConfirmSave: (studentId: string, examId: string, marks: number) => Promise<void>;
+  /** Pre-filled when session has pilot demo data (see claim-school + pilot-seed). */
+  defaultStudentId?: string;
+  defaultExamId?: string;
 };
 
-export function Scanner({ onConfirmSave }: ScannerProps) {
+export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = "" }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [studentId, setStudentId] = useState("");
-  const [examId, setExamId] = useState("");
+  const [studentId, setStudentId] = useState(defaultStudentId);
+  const [examId, setExamId] = useState(defaultExamId);
   const [isLoading, setIsLoading] = useState(false);
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [gradeResult, setGradeResult] = useState<GradeResponse | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -86,12 +90,16 @@ export function Scanner({ onConfirmSave }: ScannerProps) {
 
       const response = await fetch("/api/grade", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64 }),
       });
 
       const payload = (await response.json()) as GradeResponse | { error: string };
       if (!response.ok || "error" in payload) {
+        if (response.status === 401) {
+          throw new Error("Session required — use Claim your school, then return to Scan.");
+        }
         throw new Error("error" in payload ? payload.error : "Grading failed.");
       }
 
@@ -123,21 +131,21 @@ export function Scanner({ onConfirmSave }: ScannerProps) {
   }
 
   return (
-    <section className="w-full max-w-3xl rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="text-xl font-semibold">Scanner</h2>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Capture answer sheet, auto-grade it, then confirm and save marks.
+    <section className="w-full max-w-3xl rounded-xl border border-slate-600 bg-[#0F172A]/60 p-4 shadow-sm sm:p-6">
+      <h2 className="text-xl font-semibold text-white">Answer sheet workspace</h2>
+      <p className="mt-1 text-sm text-slate-400">
+        Use <strong className="font-medium text-slate-300">Start camera</strong>, then <strong className="font-medium text-slate-300">Grade paper</strong>, review the result, and <strong className="font-medium text-slate-300">Confirm &amp; save</strong>. Demo student and exam IDs are prefilled after you claim a school.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <input
-          className="rounded border border-zinc-300 p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-lg border border-slate-600 bg-slate-900/80 p-2 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
           placeholder="studentId (uuid)"
           value={studentId}
           onChange={(event) => setStudentId(event.target.value)}
         />
         <input
-          className="rounded border border-zinc-300 p-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-lg border border-slate-600 bg-slate-900/80 p-2 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
           placeholder="examId (uuid)"
           value={examId}
           onChange={(event) => setExamId(event.target.value)}
@@ -148,14 +156,14 @@ export function Scanner({ onConfirmSave }: ScannerProps) {
         <button
           type="button"
           onClick={startCamera}
-          className="rounded bg-black px-3 py-2 text-sm text-white dark:bg-white dark:text-black"
+          className="rounded-lg bg-[#10B981] px-3 py-2 text-sm font-medium text-[#0F172A] hover:bg-[#059669]"
         >
           Start Camera
         </button>
         <button
           type="button"
           onClick={stopCamera}
-          className="rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700"
+          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
         >
           Stop Camera
         </button>
@@ -163,7 +171,7 @@ export function Scanner({ onConfirmSave }: ScannerProps) {
           type="button"
           onClick={gradePaper}
           disabled={isLoading}
-          className="rounded border border-zinc-300 px-3 py-2 text-sm disabled:opacity-60 dark:border-zinc-700"
+          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-60"
         >
           Grade Paper
         </button>
@@ -171,18 +179,18 @@ export function Scanner({ onConfirmSave }: ScannerProps) {
           type="button"
           onClick={confirmAndSave}
           disabled={isLoading || !gradeResult}
-          className="rounded border border-emerald-500 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60 dark:text-emerald-400"
+          className="rounded-lg border border-emerald-500/80 px-3 py-2 text-sm font-medium text-emerald-300 disabled:opacity-60"
         >
           Confirm & Save
         </button>
       </div>
 
-      <video ref={videoRef} className="mt-4 w-full rounded bg-black" muted playsInline />
+      <video ref={videoRef} className="mt-4 w-full rounded-lg bg-black" muted playsInline />
       <canvas ref={canvasRef} className="hidden" />
 
       {isLoading ? (
-        <div className="mt-4 inline-flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />
+        <div className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
           AI grading...
         </div>
       ) : null}
@@ -190,11 +198,11 @@ export function Scanner({ onConfirmSave }: ScannerProps) {
       {previewImage ? (
         // Runtime data URL preview from captured frame.
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={previewImage} alt="Captured answer sheet preview" className="mt-4 w-full rounded" />
+        <img src={previewImage} alt="Captured answer sheet preview" className="mt-4 w-full rounded-lg" />
       ) : null}
 
       {gradeResult ? (
-        <div className="mt-4 space-y-2 rounded border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+        <div className="mt-4 space-y-2 rounded-lg border border-slate-600 bg-slate-900/50 p-3 text-sm text-slate-200">
           <p>
             <strong>Score:</strong> {gradeResult.score}
           </p>
@@ -204,7 +212,7 @@ export function Scanner({ onConfirmSave }: ScannerProps) {
         </div>
       ) : null}
 
-      {status ? <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">{status}</p> : null}
+      {status ? <p className="mt-3 text-sm text-slate-300">{status}</p> : null}
     </section>
   );
 }

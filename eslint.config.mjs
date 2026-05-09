@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Node CJS helper scripts (use require intentionally).
     "scripts/**",
+    // Local IDE backups should not affect project lint results.
+    ".workspace-backups/**",
   ]),
 ]);
 
