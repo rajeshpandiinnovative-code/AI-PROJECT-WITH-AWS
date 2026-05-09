@@ -31,7 +31,7 @@ import {
 import { modulePillars, type LearningModule, type ModulePillar } from "@/src/lib/modules";
 
 const CONTACT_NUMBER = "9535761292";
-const CONTACT_WHATSAPP = "https://wa.me/919535761292?text=Hello%20AI%20Academy%20Pro%20team,%20I%20want%20to%20start%20the%20pilot.";
+const CONTACT_WHATSAPP = "https://wa.me/919535761292?text=Hello%20AI%20Academy%20Pro%20team,%20I%20want%20to%20start%20the%20national%20launch.";
 
 const roleNav = [
   { label: "Students", href: "#students" },
@@ -135,7 +135,7 @@ export default function Home() {
                 href="/onboarding"
                 className="rounded-lg border border-emerald-400 px-5 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/10"
               >
-                Start Pilot Onboarding
+                Start School Onboarding
               </Link>
             </motion.div>
           </motion.div>
@@ -276,17 +276,17 @@ export default function Home() {
               Section 3: The Contact Hub
             </motion.h2>
             <motion.p variants={itemMotion} className="mt-3 max-w-3xl text-slate-300">
-              Srivilliputhur school outreach active. TNPSC-focused learning pathways and school pilots are open for quick deployment.
+              Nationwide school onboarding is active. TNPSC-focused pathways remain available as part of the broader India launch.
             </motion.p>
             <motion.p variants={itemMotion} className="mt-6 text-base font-semibold text-emerald-300">
-              Direct Pilot Support: Call/WhatsApp {CONTACT_NUMBER}
+              Direct Launch Support: Call/WhatsApp {CONTACT_NUMBER}
             </motion.p>
             <motion.div variants={itemMotion} className="mt-5 flex flex-wrap gap-3">
               <a
                 href={`tel:${CONTACT_NUMBER}`}
                 className="rounded-lg bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
               >
-                Call Pilot Team
+                Call Launch Team
               </a>
               <a
                 href={CONTACT_WHATSAPP}

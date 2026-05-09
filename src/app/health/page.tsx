@@ -6,6 +6,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 type HealthPayload = {
   ok: boolean;
   pilotReady?: boolean;
+  launchReady?: boolean;
   timestamp: string;
   checks: {
     auth: { ok: boolean; schoolIdPresent: boolean };
@@ -58,7 +59,7 @@ export default function HealthPage() {
     }
   }
 
-  async function handlePilotSignIn(event: React.FormEvent) {
+  async function handleTenantSignIn(event: React.FormEvent) {
     event.preventDefault();
     setSignInError(null);
 
@@ -96,8 +97,8 @@ export default function HealthPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-10">
       <h1 className="text-2xl font-semibold">Deploy Health Check</h1>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Verifies database connectivity, Vision, Gemini, rubric, and optional pilot session. Top-level{" "}
-        <code className="text-xs">ok</code> means infrastructure is ready; <code className="text-xs">pilotReady</code>{" "}
+        Verifies database connectivity, Vision, Gemini, rubric, and optional tenant session. Top-level{" "}
+        <code className="text-xs">ok</code> means infrastructure is ready; <code className="text-xs">launchReady</code>{" "}
         is true when you are signed in with a school tenant (<code className="text-xs">schoolId</code> on the JWT).
       </p>
       {payload?.checks.digestAutomation.ok === false ? (
@@ -108,7 +109,7 @@ export default function HealthPage() {
       ) : null}
 
       <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Pilot session</h2>
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Tenant session</h2>
         <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
           Session: {status === "loading" ? "…" : status}
           {session?.user?.schoolId ? (
@@ -127,7 +128,7 @@ export default function HealthPage() {
             Sign out
           </button>
         ) : (
-          <form onSubmit={handlePilotSignIn} className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <form onSubmit={handleTenantSignIn} className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
             <label className="flex flex-1 flex-col gap-1 text-xs text-zinc-600 dark:text-zinc-400">
               School ID (UUID)
               <input
@@ -142,7 +143,7 @@ export default function HealthPage() {
               type="submit"
               className="rounded bg-black px-4 py-2 text-sm text-white dark:bg-white dark:text-black"
             >
-              Sign in (pilot)
+              Sign in
             </button>
           </form>
         )}
@@ -202,9 +203,9 @@ export default function HealthPage() {
 
       {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
 
-      {payload?.ok && payload.pilotReady === false ? (
+      {payload?.ok && (payload.launchReady ?? payload.pilotReady) === false ? (
         <p className="text-sm text-amber-800 dark:text-amber-200">
-          Infrastructure is healthy. Sign in with a school ID to set <code className="text-xs">pilotReady</code> to{" "}
+          Infrastructure is healthy. Sign in with a school ID to set <code className="text-xs">launchReady</code> to{" "}
           true.
         </p>
       ) : null}

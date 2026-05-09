@@ -350,7 +350,7 @@ export default async function DashboardPage() {
       <main className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <div className="mb-2 inline-flex items-center gap-2 text-emerald-400">
           <LayoutDashboard className="size-5" aria-hidden />
-          <span className="text-xs font-semibold uppercase tracking-wider">Pilot console</span>
+          <span className="text-xs font-semibold uppercase tracking-wider">School operations console</span>
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{school.name}</h1>
         <p className="mt-2 font-mono text-sm text-slate-400">UDISE {school.udiseCode}</p>

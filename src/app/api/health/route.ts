@@ -62,15 +62,16 @@ export async function GET() {
     checks.database.error = formatDbError(error);
   }
 
-  // Deploy / infra readiness (DB + keys). Auth is separate — pilot sign-in is optional for probes.
+  // Deploy / infra readiness (DB + keys). Auth is separate — tenant sign-in is optional for probes.
   const infrastructureOk =
     checks.database.ok && checks.vision.ok && checks.gemini.ok && checks.rubric.ok && checks.digestAutomation.ok;
-  const pilotReady = infrastructureOk && checks.auth.ok;
+  const launchReady = infrastructureOk && checks.auth.ok;
 
   return NextResponse.json(
     {
       ok: infrastructureOk,
-      pilotReady,
+      launchReady,
+      pilotReady: launchReady,
       timestamp: new Date().toISOString(),
       checks,
     },
