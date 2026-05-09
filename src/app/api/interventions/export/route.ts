@@ -1,0 +1,95 @@
+import { desc, eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+
+import { auth } from "@/auth";
+import { db } from "@/src/lib/db";
+import { interventionAuditLogs, interventionTasks } from "@/src/db/schema";
+
+function toCsvCell(value: unknown): string {
+  const normalized = String(value ?? "");
+  const escaped = normalized.replace(/"/g, '""');
+  return `"${escaped}"`;
+}
+
+function buildCsv(headers: string[], rows: Array<Array<unknown>>): string {
+  const head = headers.map(toCsvCell).join(",");
+  const body = rows.map((row) => row.map(toCsvCell).join(",")).join("\n");
+  return body ? `${head}\n${body}\n` : `${head}\n`;
+}
+
+export async function GET(request: Request) {
+  try {
+    const session = await auth();
+    const schoolId = session?.user?.schoolId;
+    if (!schoolId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type");
+
+    if (type === "tracker") {
+      const tasks = await db.query.interventionTasks.findMany({
+        where: eq(interventionTasks.schoolId, schoolId),
+        orderBy: [desc(interventionTasks.createdAt)],
+        limit: 1000,
+      });
+
+      const csv = buildCsv(
+        ["id", "studentName", "examName", "marks", "recommendedModule", "status", "createdAt", "updatedAt"],
+        tasks.map((task) => [
+          task.id,
+          task.studentName,
+          task.examName,
+          task.marks,
+          task.recommendedModule,
+          task.status,
+          task.createdAt.toISOString(),
+          task.updatedAt.toISOString(),
+        ]),
+      );
+
+      return new Response(csv, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="intervention-tracker.csv"',
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+    if (type === "audit") {
+      const logs = await db.query.interventionAuditLogs.findMany({
+        where: eq(interventionAuditLogs.schoolId, schoolId),
+        orderBy: [desc(interventionAuditLogs.createdAt)],
+        limit: 1000,
+      });
+
+      const csv = buildCsv(
+        ["id", "actionType", "affectedCount", "metadata", "createdAt"],
+        logs.map((log) => [
+          log.id,
+          log.actionType,
+          log.affectedCount,
+          JSON.stringify(log.metadata ?? {}),
+          log.createdAt.toISOString(),
+        ]),
+      );
+
+      return new Response(csv, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="intervention-audit.csv"',
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+    return NextResponse.json({ error: "Invalid export type. Use type=tracker or type=audit" }, { status: 400 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to export interventions";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

@@ -476,6 +476,14 @@ export default async function DashboardPage() {
 
         <section className="mt-12">
           <h2 className="text-lg font-semibold text-white">Intervention tracker</h2>
+          <div className="mt-2">
+            <a
+              href="/api/interventions/export?type=tracker"
+              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+            >
+              Download tracker CSV
+            </a>
+          </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
               <p className="text-xs uppercase tracking-wide text-slate-500">Open interventions</p>
@@ -565,6 +573,14 @@ export default async function DashboardPage() {
 
         <section className="mt-12">
           <h2 className="text-lg font-semibold text-white">Intervention audit trail</h2>
+          <div className="mt-2">
+            <a
+              href="/api/interventions/export?type=audit"
+              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+            >
+              Download audit CSV
+            </a>
+          </div>
           {recentAuditLogs.length === 0 ? (
             <p className="mt-3 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
               No intervention actions recorded yet.
