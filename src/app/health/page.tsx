@@ -23,6 +23,7 @@ export default function HealthPage() {
   const [error, setError] = useState<string | null>(null);
   const [schoolId, setSchoolId] = useState("");
   const [signInError, setSignInError] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "curl" | "powershell">("idle");
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://your-domain.com";
   const cronCurl = `curl -X POST "${baseUrl}/api/interventions/digest" \\
   -H "x-cron-token: $DIGEST_CRON_TOKEN" \\
@@ -77,6 +78,17 @@ export default function HealthPage() {
     }
 
     setSchoolId("");
+  }
+
+  async function copyCommand(type: "curl" | "powershell") {
+    const text = type === "curl" ? cronCurl : cronPowerShell;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyState(type);
+      window.setTimeout(() => setCopyState("idle"), 1500);
+    } catch {
+      setCopyState("idle");
+    }
   }
 
   return (
@@ -137,13 +149,31 @@ export default function HealthPage() {
         </p>
         <div className="mt-3 grid gap-3">
           <div>
-            <p className="mb-1 text-xs font-semibold text-zinc-700 dark:text-zinc-300">cURL</p>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">cURL</p>
+              <button
+                type="button"
+                onClick={() => void copyCommand("curl")}
+                className="rounded border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600"
+              >
+                {copyState === "curl" ? "Copied" : "Copy"}
+              </button>
+            </div>
             <pre className="overflow-auto rounded border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-950">
               {cronCurl}
             </pre>
           </div>
           <div>
-            <p className="mb-1 text-xs font-semibold text-zinc-700 dark:text-zinc-300">PowerShell</p>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">PowerShell</p>
+              <button
+                type="button"
+                onClick={() => void copyCommand("powershell")}
+                className="rounded border border-zinc-300 px-2 py-0.5 text-[11px] dark:border-zinc-600"
+              >
+                {copyState === "powershell" ? "Copied" : "Copy"}
+              </button>
+            </div>
             <pre className="overflow-auto rounded border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-950">
               {cronPowerShell}
             </pre>
