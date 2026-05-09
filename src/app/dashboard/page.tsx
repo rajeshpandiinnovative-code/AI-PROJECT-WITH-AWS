@@ -154,7 +154,7 @@ export default async function DashboardPage() {
     orderBy: [desc(interventionTasks.createdAt)],
     limit: 20,
   });
-  const nowMs = Date.now();
+  const nowMs = now.getTime();
   const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
   const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
@@ -219,7 +219,7 @@ export default async function DashboardPage() {
         criticalCount,
       };
     });
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const recentDigestRuns = digestRunHistory.filter((run) => run.createdAt >= sevenDaysAgo);
   const manualDigestRuns7d = recentDigestRuns.filter((run) => run.actionType === "daily_digest_generate").length;
   const cronDigestRuns7d = recentDigestRuns.filter((run) => run.actionType === "daily_digest_generate_cron").length;
@@ -228,7 +228,7 @@ export default async function DashboardPage() {
   const automationStatus = automationShare7d >= 80 ? "strong" : automationShare7d >= 40 ? "partial" : "low";
   const latestCronRun = digestRunHistory.find((run) => run.actionType === "daily_digest_generate_cron") ?? null;
   const latestCronAgeHours = latestCronRun
-    ? Math.floor((Date.now() - latestCronRun.createdAt.getTime()) / (1000 * 60 * 60))
+    ? Math.floor((now.getTime() - latestCronRun.createdAt.getTime()) / (1000 * 60 * 60))
     : null;
   const cronDelayStatus =
     latestCronAgeHours === null ? "never" : latestCronAgeHours > 30 ? "delayed" : "on-time";
@@ -237,7 +237,7 @@ export default async function DashboardPage() {
     orderBy: [desc(interventionDailyDigests.createdAt)],
   });
   const digestFreshnessHours = latestDigest
-    ? Math.floor((Date.now() - latestDigest.updatedAt.getTime()) / (1000 * 60 * 60))
+    ? Math.floor((now.getTime() - latestDigest.updatedAt.getTime()) / (1000 * 60 * 60))
     : null;
   const digestFreshness =
     digestFreshnessHours === null ? "missing" : digestFreshnessHours > 30 ? "stale" : "fresh";
@@ -414,7 +414,7 @@ export default async function DashboardPage() {
                 type="submit"
                 className="rounded-md border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-300"
               >
-                Generate today's digest
+                Generate today&apos;s digest
               </button>
             </form>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 type TopModuleWorkbenchProps = {
   moduleSlug: string;
@@ -224,15 +225,6 @@ const MODULE_BLUEPRINTS: Record<string, ModuleBlueprint> = {
   },
 };
 
-function createQuestion(id: number): VedicQuestion {
-  const a = Math.floor(Math.random() * 90) + 10;
-  const b = Math.floor(Math.random() * 90) + 10;
-  const useMultiply = Math.random() > 0.5;
-  return useMultiply
-    ? { id, prompt: `${a} x ${b}`, answer: a * b, concept: "Multiplication pattern" }
-    : { id, prompt: `${a} + ${b}`, answer: a + b, concept: "Left-to-right addition" };
-}
-
 type VedicLevel = "beginner" | "intermediate" | "advanced";
 
 const VEDIC_LEVELS: VedicLevel[] = ["beginner", "intermediate", "advanced"];
@@ -321,12 +313,18 @@ function AuthRequiredBanner() {
     <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-950/30 p-3 text-sm text-amber-200">
       <p className="font-semibold">Sign in and claim your school to save module history.</p>
       <div className="mt-2 flex flex-wrap gap-2">
-        <a href="/api/auth/signin" className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-slate-950">
+        <Link
+          href="/api/auth/signin"
+          className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-slate-950"
+        >
           Sign In
-        </a>
-        <a href="/onboarding" className="rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-200">
+        </Link>
+        <Link
+          href="/onboarding"
+          className="rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-200"
+        >
           Claim School
-        </a>
+        </Link>
       </div>
     </div>
   );
@@ -407,7 +405,8 @@ function VedicChatPanel({ level }: { level: VedicLevel }) {
     <div className="mt-6 rounded-xl border border-slate-700 bg-slate-900/60 p-4">
       <p className="text-sm font-semibold text-cyan-300">AI Vedic Tutor Chatbot</p>
       <p className="mt-1 text-xs text-slate-400">
-        Ask doubts during lessons or while solving timed exams. Ex: "Teach base-100 multiplication with shortcuts."
+        Ask doubts during lessons or while solving timed exams. Ex: &quot;Teach base-100 multiplication with
+        shortcuts.&quot;
       </p>
 
       <div className="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-lg border border-slate-700 bg-slate-950 p-3">
@@ -978,7 +977,7 @@ function VedicMathsWorkbench() {
     }
   };
 
-  const evaluate = () => {
+  const evaluate = useCallback(() => {
     if (!questions.length) return;
     const correct = questions.filter((q) => Number(answers[q.id]) === q.answer).length;
     const currentAccuracy = Math.round((correct / questions.length) * 100);
@@ -1018,22 +1017,24 @@ function VedicMathsWorkbench() {
         }
       }
     })();
-  };
+  }, [questions, answers, activeLevel, secondsLeft]);
 
   useEffect(() => {
     if (!examStarted) return;
 
     if (secondsLeft <= 0) {
-      evaluate();
-      return;
+      const timeoutId = window.setTimeout(() => {
+        evaluate();
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
 
-    const id = window.setInterval(() => {
+    const intervalId = window.setInterval(() => {
       setSecondsLeft((prev) => prev - 1);
     }, 1000);
 
-    return () => window.clearInterval(id);
-  }, [examStarted, secondsLeft]);
+    return () => window.clearInterval(intervalId);
+  }, [examStarted, secondsLeft, evaluate]);
 
   useEffect(() => {
     void (async () => {

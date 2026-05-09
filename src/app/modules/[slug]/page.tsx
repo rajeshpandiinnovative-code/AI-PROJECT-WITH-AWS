@@ -9,13 +9,13 @@ type ModulePageProps = {
 };
 
 export function generateStaticParams() {
-  return allModules.map((module) => ({ slug: module.slug }));
+  return allModules.map((entry) => ({ slug: entry.slug }));
 }
 
 export default async function ModuleDetailPage({ params }: ModulePageProps) {
   const { slug } = await params;
-  const module = getModuleBySlug(slug);
-  if (!module) notFound();
+  const learningModule = getModuleBySlug(slug);
+  if (!learningModule) notFound();
 
   const pillar = modulePillars.find((item) => item.modules.some((entry) => entry.slug === slug));
 
@@ -23,12 +23,12 @@ export default async function ModuleDetailPage({ params }: ModulePageProps) {
     <main className="min-h-screen bg-slate-950 px-4 py-12 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl rounded-2xl border border-slate-800 bg-slate-900 p-6 sm:p-8">
         <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">AI Academy Pro Module</p>
-        <h1 className="mt-3 text-3xl font-bold text-white sm:text-4xl">{module.title}</h1>
-        <p className="mt-4 text-base text-slate-300">{module.description}</p>
+        <h1 className="mt-3 text-3xl font-bold text-white sm:text-4xl">{learningModule.title}</h1>
+        <p className="mt-4 text-base text-slate-300">{learningModule.description}</p>
 
         <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950 p-4">
           <p className="text-sm font-semibold text-cyan-300">Expected Outcome</p>
-          <p className="mt-2 text-sm text-slate-300">{module.outcome}</p>
+          <p className="mt-2 text-sm text-slate-300">{learningModule.outcome}</p>
         </div>
 
         <div className="mt-6 grid gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4 sm:grid-cols-2">
@@ -38,7 +38,7 @@ export default async function ModuleDetailPage({ params }: ModulePageProps) {
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.15em] text-slate-400">Module Slug</p>
-            <p className="mt-1 text-sm font-mono text-cyan-300">{module.slug}</p>
+            <p className="mt-1 text-sm font-mono text-cyan-300">{learningModule.slug}</p>
           </div>
         </div>
 
@@ -57,7 +57,7 @@ export default async function ModuleDetailPage({ params }: ModulePageProps) {
           </Link>
         </div>
 
-        <TopModuleWorkbench moduleSlug={module.slug} moduleTitle={module.title} />
+        <TopModuleWorkbench moduleSlug={learningModule.slug} moduleTitle={learningModule.title} />
       </div>
     </main>
   );
