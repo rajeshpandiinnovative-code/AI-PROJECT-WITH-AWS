@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import { LayoutDashboard, ExternalLink, ScanLine } from "lucide-react";
 
 import { auth } from "@/auth";
+import { assignIntervention, completeIntervention } from "@/src/app/actions/interventions";
 import { db } from "@/src/lib/db";
 import { allModules } from "@/src/lib/modules";
-import { exams, moduleHistories, results, schools, students } from "@/src/db/schema";
+import { exams, interventionTasks, moduleHistories, results, schools, students } from "@/src/db/schema";
 
 import { PilotNav } from "@/src/components/PilotNav";
 
@@ -101,11 +102,22 @@ export default async function DashboardPage() {
       }
       return {
         ...r,
+        sourceResultId: r.id,
         marks,
         riskBand: marks < 25 ? "Critical" : marks < 33 ? "High" : "Moderate",
         recommendedModule,
       };
     });
+
+  const recentInterventions = await db.query.interventionTasks.findMany({
+    where: eq(interventionTasks.schoolId, schoolId),
+    orderBy: [desc(interventionTasks.createdAt)],
+    limit: 20,
+  });
+
+  const assignedTaskByResultId = new Map(
+    recentInterventions.filter((task) => task.status === "assigned" && task.sourceResultId).map((task) => [task.sourceResultId!, task]),
+  );
 
   const recentModuleEvents = await db.query.moduleHistories.findMany({
     where: eq(moduleHistories.schoolId, schoolId),
@@ -381,6 +393,71 @@ export default async function DashboardPage() {
                     {row.createdAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
                   </p>
                   <p className="mt-2 text-sm text-cyan-200">Suggested assignment: {row.recommendedModule}</p>
+                  <div className="mt-3">
+                    {assignedTaskByResultId.get(row.sourceResultId) ? (
+                      <span className="rounded-md border border-amber-500/40 px-2 py-1 text-xs text-amber-200">
+                        Intervention assigned
+                      </span>
+                    ) : (
+                      <form
+                        action={assignIntervention.bind(null, {
+                          sourceResultId: row.sourceResultId,
+                          studentName: row.studentName,
+                          examName: row.examName,
+                          marks: row.marks,
+                          recommendedModule: row.recommendedModule,
+                        })}
+                      >
+                        <button
+                          type="submit"
+                          className="rounded-md border border-cyan-500/50 px-3 py-1.5 text-xs font-semibold text-cyan-200"
+                        >
+                          Mark as Assigned
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mt-12">
+          <h2 className="text-lg font-semibold text-white">Intervention tracker</h2>
+          {recentInterventions.length === 0 ? (
+            <p className="mt-3 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
+              No intervention tasks yet. Assign from the watchlist to start tracking.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {recentInterventions.map((task) => (
+                <li key={task.id} className="rounded-xl border border-slate-700 bg-[#1E293B] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-white">{task.studentName}</p>
+                    <span
+                      className={`rounded-md border px-2 py-1 text-xs ${
+                        task.status === "completed"
+                          ? "border-emerald-500/40 text-emerald-300"
+                          : "border-amber-500/40 text-amber-300"
+                      }`}
+                    >
+                      {task.status === "completed" ? "Completed" : "Assigned"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {task.examName} · {task.marks} marks · {task.recommendedModule}
+                  </p>
+                  {task.status !== "completed" ? (
+                    <form action={completeIntervention.bind(null, task.id)} className="mt-3">
+                      <button
+                        type="submit"
+                        className="rounded-md border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-300"
+                      >
+                        Mark Completed
+                      </button>
+                    </form>
+                  ) : null}
                 </li>
               ))}
             </ul>

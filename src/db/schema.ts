@@ -124,3 +124,23 @@ export const moduleHistories = pgTable(
     moduleSlugIdx: index("module_histories_module_slug_idx").on(table.moduleSlug),
   }),
 );
+
+export const interventionTasks = pgTable(
+  "intervention_tasks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    schoolId: text("school_id").notNull(),
+    sourceResultId: uuid("source_result_id"),
+    studentName: varchar("student_name", { length: 255 }).notNull(),
+    examName: varchar("exam_name", { length: 255 }).notNull(),
+    marks: integer("marks").notNull(),
+    recommendedModule: varchar("recommended_module", { length: 128 }).notNull(),
+    status: varchar("status", { length: 32 }).notNull().default("assigned"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    schoolIdIdx: index("intervention_tasks_school_id_idx").on(table.schoolId),
+    statusIdx: index("intervention_tasks_status_idx").on(table.status),
+  }),
+);

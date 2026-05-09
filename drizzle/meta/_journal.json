@@ -36,6 +36,13 @@
       "when": 1777871400000,
       "tag": "0004_module_histories",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778320200000,
+      "tag": "0005_intervention_tasks",
+      "breakpoints": true
     }
   ]
 }
