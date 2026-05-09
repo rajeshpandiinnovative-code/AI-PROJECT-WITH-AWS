@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { cleanEnv } from "@/src/lib/env";
+
 const MAX_OCR_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const visionResponseSchema = z.object({
@@ -31,7 +33,7 @@ type ExtractTextFromImageInput = {
  * Uses an API key (recommended for Next.js server routes). No Node SDK — avoids deprecated transitive deps.
  */
 export async function extractTextFromImage(input: ExtractTextFromImageInput) {
-  const apiKey = process.env.GOOGLE_CLOUD_VISION_API_KEY;
+  const apiKey = cleanEnv(process.env.GOOGLE_CLOUD_VISION_API_KEY);
 
   if (!apiKey) {
     throw new Error("VISION_CONFIG_MISSING");

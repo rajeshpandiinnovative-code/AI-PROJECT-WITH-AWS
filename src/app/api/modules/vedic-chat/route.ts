@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { cleanEnv, getGeminiModel } from "@/src/lib/env";
+
 const bodySchema = z.object({
   message: z.string().min(1).max(1200),
   context: z.string().max(2000).optional(),
@@ -16,7 +18,8 @@ type GeminiPayload = {
 
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
+    const model = getGeminiModel();
     if (!apiKey) {
       return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
     }
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
       .join("\n");
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,7 +61,20 @@ export async function POST(request: Request) {
     );
 
     if (!response.ok) {
-      return NextResponse.json({ error: "GEMINI_REQUEST_FAILED" }, { status: 502 });
+      let upstream = "";
+      try {
+        upstream = await response.text();
+      } catch {
+        upstream = "";
+      }
+      return NextResponse.json(
+        {
+          error: "GEMINI_REQUEST_FAILED",
+          upstreamStatus: response.status,
+          upstreamBody: upstream.slice(0, 800),
+        },
+        { status: 502 },
+      );
     }
 
     const payload = (await response.json()) as GeminiPayload;

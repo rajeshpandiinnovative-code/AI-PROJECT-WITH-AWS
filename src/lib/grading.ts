@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { cleanEnv, getGeminiModel } from "@/src/lib/env";
+
 const gradingOutputSchema = z.object({
   marks: z.number().finite(),
   feedback: z.string().min(1),
@@ -16,7 +18,8 @@ type GradeWithRubricInput = {
 export type GradeWithRubricOutput = z.infer<typeof gradingOutputSchema>;
 
 export async function gradeWithRubric(input: GradeWithRubricInput): Promise<GradeWithRubricOutput> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
+  const model = getGeminiModel();
 
   if (!apiKey) {
     throw new Error("GEMINI_CONFIG_MISSING");
@@ -37,7 +40,7 @@ export async function gradeWithRubric(input: GradeWithRubricInput): Promise<Grad
   ].join("\n");
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
