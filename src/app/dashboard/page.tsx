@@ -9,12 +9,14 @@ import {
   bulkCompleteOverdueInterventions,
   bulkFollowUpOverdueInterventions,
   completeIntervention,
+  generateDailyInterventionDigest,
 } from "@/src/app/actions/interventions";
 import { db } from "@/src/lib/db";
 import { allModules } from "@/src/lib/modules";
 import {
   exams,
   interventionAuditLogs,
+  interventionDailyDigests,
   interventionTasks,
   moduleHistories,
   results,
@@ -88,6 +90,8 @@ export default async function DashboardPage() {
   const auditExport30dHref = `/api/interventions/export?type=audit&from=${fromIsoDate}&to=${nowIsoDate}`;
   const auditExportBulkCriticalHref = "/api/interventions/export?type=audit&actionType=bulk_complete_critical";
   const auditExportBulkFollowup30dHref = `/api/interventions/export?type=audit&actionType=bulk_followup_overdue&from=${fromIsoDate}&to=${nowIsoDate}`;
+  const digestExportAllHref = "/api/interventions/export?type=digest";
+  const digestExport30dHref = `/api/interventions/export?type=digest&from=${fromIsoDate}&to=${nowIsoDate}`;
 
   const [studentStat] = await db
     .select({ n: count() })
@@ -190,6 +194,10 @@ export default async function DashboardPage() {
     where: eq(interventionAuditLogs.schoolId, schoolId),
     orderBy: [desc(interventionAuditLogs.createdAt)],
     limit: 8,
+  });
+  const latestDigest = await db.query.interventionDailyDigests.findFirst({
+    where: eq(interventionDailyDigests.schoolId, schoolId),
+    orderBy: [desc(interventionDailyDigests.createdAt)],
   });
 
   const recentModuleEvents = await db.query.moduleHistories.findMany({
@@ -340,6 +348,50 @@ export default async function DashboardPage() {
               Bulk follow-up actions (last 30d)
             </a>
           </div>
+        </section>
+
+        <section className="mt-8 rounded-xl border border-slate-700 bg-[#1E293B] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-300">Daily digest</h2>
+              <p className="mt-1 text-xs text-slate-400">Generate and store daily intervention summary for operations review.</p>
+            </div>
+            <form action={generateDailyInterventionDigest}>
+              <button
+                type="submit"
+                className="rounded-md border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-300"
+              >
+                Generate today's digest
+              </button>
+            </form>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <a href={digestExportAllHref} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+              Download digest CSV (all)
+            </a>
+            <a href={digestExport30dHref} className="text-xs font-semibold text-cyan-300 hover:text-cyan-200">
+              Download digest CSV (last 30d)
+            </a>
+          </div>
+          {latestDigest ? (
+            <div className="mt-3 rounded-lg border border-slate-700 bg-slate-900/40 p-3 text-xs text-slate-300">
+              <p className="font-semibold text-white">Latest digest: {latestDigest.digestDate}</p>
+              <p className="mt-1">
+                Open: {String((latestDigest.summary as Record<string, unknown>).openCount ?? "--")} · Overdue:{" "}
+                {String((latestDigest.summary as Record<string, unknown>).overdueCount ?? "--")} · Critical:{" "}
+                {String((latestDigest.summary as Record<string, unknown>).criticalCount ?? "--")}
+              </p>
+              <p className="mt-1 text-slate-400">
+                Updated{" "}
+                {latestDigest.updatedAt.toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-slate-400">No digest generated yet. Click generate to create today’s summary.</p>
+          )}
         </section>
 
         <section className="mt-8">

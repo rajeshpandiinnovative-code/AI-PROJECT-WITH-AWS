@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { db } from "@/src/lib/db";
-import { interventionAuditLogs, interventionTasks } from "@/src/db/schema";
+import { interventionAuditLogs, interventionDailyDigests, interventionTasks } from "@/src/db/schema";
 
 function toCsvCell(value: unknown): string {
   const normalized = String(value ?? "");
@@ -119,7 +119,45 @@ export async function GET(request: Request) {
       });
     }
 
-    return NextResponse.json({ error: "Invalid export type. Use type=tracker or type=audit" }, { status: 400 });
+    if (type === "digest") {
+      const digests = await db.query.interventionDailyDigests.findMany({
+        where: and(
+          eq(interventionDailyDigests.schoolId, schoolId),
+          fromDate ? gte(interventionDailyDigests.createdAt, fromDate) : undefined,
+          toDate ? lte(interventionDailyDigests.createdAt, toDate) : undefined,
+        ),
+        orderBy: [desc(interventionDailyDigests.createdAt)],
+        limit: 365,
+      });
+
+      const csv = buildCsv(
+        ["id", "digestDate", "openCount", "overdueCount", "criticalCount", "topAtRiskStudents", "createdAt", "updatedAt"],
+        digests.map((d) => {
+          const summary = (d.summary ?? {}) as Record<string, unknown>;
+          return [
+            d.id,
+            d.digestDate,
+            summary.openCount ?? "",
+            summary.overdueCount ?? "",
+            summary.criticalCount ?? "",
+            JSON.stringify(summary.topAtRiskStudents ?? []),
+            d.createdAt.toISOString(),
+            d.updatedAt.toISOString(),
+          ];
+        }),
+      );
+
+      return new Response(csv, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": 'attachment; filename="intervention-digest.csv"',
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
+    return NextResponse.json({ error: "Invalid export type. Use type=tracker, type=audit, or type=digest" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to export interventions";
     return NextResponse.json({ error: message }, { status: 500 });

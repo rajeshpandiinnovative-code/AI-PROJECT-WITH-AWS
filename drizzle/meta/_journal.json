@@ -50,6 +50,13 @@
       "when": 1778328600000,
       "tag": "0006_intervention_audit_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778330400000,
+      "tag": "0007_intervention_daily_digests",
+      "breakpoints": true
     }
   ]
 }

@@ -160,3 +160,19 @@ export const interventionAuditLogs = pgTable(
     actionTypeIdx: index("intervention_audit_logs_action_type_idx").on(table.actionType),
   }),
 );
+
+export const interventionDailyDigests = pgTable(
+  "intervention_daily_digests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    schoolId: text("school_id").notNull(),
+    digestDate: date("digest_date").notNull(),
+    summary: jsonb("summary").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    schoolIdIdx: index("intervention_daily_digests_school_id_idx").on(table.schoolId),
+    digestDateIdx: index("intervention_daily_digests_digest_date_idx").on(table.digestDate),
+  }),
+);
