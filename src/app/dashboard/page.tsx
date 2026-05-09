@@ -83,9 +83,11 @@ export default async function DashboardPage() {
   const trackerExportAllHref = "/api/interventions/export?type=tracker";
   const trackerExport30dHref = `/api/interventions/export?type=tracker&from=${fromIsoDate}&to=${nowIsoDate}`;
   const trackerExportHomeworkHref = "/api/interventions/export?type=tracker&module=Homework%20Helper";
+  const trackerExportWeakArea30dHref = `/api/interventions/export?type=tracker&module=Weak%20Area%20Detection&from=${fromIsoDate}&to=${nowIsoDate}`;
   const auditExportAllHref = "/api/interventions/export?type=audit";
   const auditExport30dHref = `/api/interventions/export?type=audit&from=${fromIsoDate}&to=${nowIsoDate}`;
   const auditExportBulkCriticalHref = "/api/interventions/export?type=audit&actionType=bulk_complete_critical";
+  const auditExportBulkFollowup30dHref = `/api/interventions/export?type=audit&actionType=bulk_followup_overdue&from=${fromIsoDate}&to=${nowIsoDate}`;
 
   const [studentStat] = await db
     .select({ n: count() })
@@ -311,6 +313,25 @@ export default async function DashboardPage() {
             <dd className="mt-1 text-2xl font-semibold tabular-nums text-white">{resultCount}</dd>
           </div>
         </dl>
+
+        <section className="mt-8 rounded-xl border border-slate-700 bg-[#1E293B] p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">Export presets</h2>
+          <p className="mt-1 text-xs text-slate-400">One-click bundles for weekly leadership review.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <a href={trackerExport30dHref} className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:border-cyan-500/50">
+              Weekly tracker (last 30d)
+            </a>
+            <a href={auditExport30dHref} className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:border-cyan-500/50">
+              Weekly audit (last 30d)
+            </a>
+            <a href={trackerExportWeakArea30dHref} className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:border-cyan-500/50">
+              Weak Area Detection interventions
+            </a>
+            <a href={auditExportBulkFollowup30dHref} className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:border-cyan-500/50">
+              Bulk follow-up actions (last 30d)
+            </a>
+          </div>
+        </section>
 
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-white">Module analytics</h2>
