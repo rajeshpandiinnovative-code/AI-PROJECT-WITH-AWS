@@ -114,6 +114,31 @@ export default async function DashboardPage() {
     orderBy: [desc(interventionTasks.createdAt)],
     limit: 20,
   });
+  const nowMs = Date.now();
+  const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+  const interventionRows = recentInterventions.map((task) => {
+    const ageMs = nowMs - task.createdAt.getTime();
+    const ageDays = Math.max(0, Math.floor(ageMs / (24 * 60 * 60 * 1000)));
+    const overdue = task.status !== "completed" && ageMs > threeDaysMs;
+    const criticalDelay = task.status !== "completed" && ageMs > sevenDaysMs;
+    return {
+      ...task,
+      ageDays,
+      overdue,
+      criticalDelay,
+    };
+  });
+  const openInterventionCount = interventionRows.filter((task) => task.status !== "completed").length;
+  const overdueInterventionCount = interventionRows.filter((task) => task.overdue).length;
+  const criticalDelayCount = interventionRows.filter((task) => task.criticalDelay).length;
+  const sortedInterventionRows = [...interventionRows].sort((a, b) => {
+    const aRank = a.criticalDelay ? 3 : a.overdue ? 2 : a.status !== "completed" ? 1 : 0;
+    const bRank = b.criticalDelay ? 3 : b.overdue ? 2 : b.status !== "completed" ? 1 : 0;
+    if (aRank !== bRank) return bRank - aRank;
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
 
   const assignedTaskByResultId = new Map(
     recentInterventions.filter((task) => task.status === "assigned" && task.sourceResultId).map((task) => [task.sourceResultId!, task]),
@@ -425,28 +450,56 @@ export default async function DashboardPage() {
 
         <section className="mt-12">
           <h2 className="text-lg font-semibold text-white">Intervention tracker</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Open interventions</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-white">{openInterventionCount}</p>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Overdue (&gt;3 days)</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-300">{overdueInterventionCount}</p>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Critical delay (&gt;7 days)</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-rose-300">{criticalDelayCount}</p>
+            </div>
+          </div>
           {recentInterventions.length === 0 ? (
             <p className="mt-3 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
               No intervention tasks yet. Assign from the watchlist to start tracking.
             </p>
           ) : (
             <ul className="mt-4 space-y-3">
-              {recentInterventions.map((task) => (
+              {sortedInterventionRows.map((task) => (
                 <li key={task.id} className="rounded-xl border border-slate-700 bg-[#1E293B] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-semibold text-white">{task.studentName}</p>
-                    <span
-                      className={`rounded-md border px-2 py-1 text-xs ${
-                        task.status === "completed"
-                          ? "border-emerald-500/40 text-emerald-300"
-                          : "border-amber-500/40 text-amber-300"
-                      }`}
-                    >
-                      {task.status === "completed" ? "Completed" : "Assigned"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {task.criticalDelay ? (
+                        <span className="rounded-md border border-rose-500/40 px-2 py-1 text-xs text-rose-300">
+                          Critical Delay
+                        </span>
+                      ) : task.overdue ? (
+                        <span className="rounded-md border border-amber-500/40 px-2 py-1 text-xs text-amber-300">
+                          Overdue
+                        </span>
+                      ) : null}
+                      <span
+                        className={`rounded-md border px-2 py-1 text-xs ${
+                          task.status === "completed"
+                            ? "border-emerald-500/40 text-emerald-300"
+                            : "border-amber-500/40 text-amber-300"
+                        }`}
+                      >
+                        {task.status === "completed" ? "Completed" : "Assigned"}
+                      </span>
+                    </div>
                   </div>
                   <p className="mt-1 text-xs text-slate-400">
                     {task.examName} · {task.marks} marks · {task.recommendedModule}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Age: {task.ageDays} day{task.ageDays === 1 ? "" : "s"}
                   </p>
                   {task.status !== "completed" ? (
                     <form action={completeIntervention.bind(null, task.id)} className="mt-3">
