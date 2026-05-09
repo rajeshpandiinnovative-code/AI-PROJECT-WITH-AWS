@@ -1,7 +1,7 @@
 import { and, desc, eq, lt } from "drizzle-orm";
 
 import { db } from "./client";
-import { exams, results, students } from "./schema";
+import { exams, moduleHistories, results, students } from "./schema";
 import { type TenantContext, withTenant } from "./tenant";
 
 type CreateStudentInput = {
@@ -116,6 +116,13 @@ type ListResultsForExamOptions = {
   cursor?: string;
 };
 
+type CreateModuleHistoryInput = {
+  moduleSlug: string;
+  moduleTitle: string;
+  inputData: unknown;
+  outputData: unknown;
+};
+
 export async function listResultsForExamPaginated(
   ctx: TenantContext,
   examId: string,
@@ -147,4 +154,32 @@ export async function listResultsForExamPaginated(
     data,
     nextCursor,
   };
+}
+
+export async function createModuleHistory(ctx: TenantContext, input: CreateModuleHistoryInput) {
+  const tenant = withTenant(ctx);
+
+  const [row] = await db
+    .insert(moduleHistories)
+    .values({
+      schoolId: tenant.schoolId,
+      moduleSlug: input.moduleSlug,
+      moduleTitle: input.moduleTitle,
+      inputData: input.inputData,
+      outputData: input.outputData,
+    })
+    .returning();
+
+  return row;
+}
+
+export async function listModuleHistory(ctx: TenantContext, moduleSlug: string, limit = 10) {
+  const tenant = withTenant(ctx);
+  const safeLimit = Math.min(Math.max(limit, 1), 50);
+
+  return db.query.moduleHistories.findMany({
+    where: and(eq(moduleHistories.schoolId, tenant.schoolId), eq(moduleHistories.moduleSlug, moduleSlug)),
+    orderBy: [desc(moduleHistories.createdAt)],
+    limit: safeLimit,
+  });
 }

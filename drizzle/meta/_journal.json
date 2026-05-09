@@ -8,6 +8,34 @@
       "when": 1777817278770,
       "tag": "0000_majestic_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777848262952,
+      "tag": "0001_global_schools_directory",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777855000000,
+      "tag": "0002_global_schools_columns_refresh",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777862000000,
+      "tag": "0003_global_schools_board_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777871400000,
+      "tag": "0004_module_histories",
+      "breakpoints": true
     }
   ]
 }

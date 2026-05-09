@@ -28,24 +28,10 @@ import {
   UserCircle2,
   Wallet,
 } from "lucide-react";
+import { modulePillars, type LearningModule, type ModulePillar } from "@/src/lib/modules";
 
 const CONTACT_NUMBER = "9535761292";
 const CONTACT_WHATSAPP = "https://wa.me/919535761292?text=Hello%20AI%20Academy%20Pro%20team,%20I%20want%20to%20start%20the%20pilot.";
-
-type ModuleCard = {
-  title: string;
-  icon: LucideIcon;
-  description: string;
-};
-
-type Pillar = {
-  id: string;
-  title: string;
-  subtitle: string;
-  accentClass: string;
-  ringClass: string;
-  modules: ModuleCard[];
-};
 
 const roleNav = [
   { label: "Students", href: "#students" },
@@ -53,65 +39,31 @@ const roleNav = [
   { label: "Schools", href: "#schools" },
 ];
 
-const pillars: Pillar[] = [
-  {
-    id: "pillar-a",
-    title: "Pillar A: Academic & Competitive Excellence",
-    subtitle: "Build score, speed, and exam confidence at scale.",
-    accentClass: "from-cyan-500/20 via-blue-500/10 to-slate-950",
-    ringClass: "ring-cyan-400/30",
-    modules: [
-      { title: "Vedic Maths", icon: Calculator, description: "Fast mental arithmetic techniques." },
-      { title: "Speed Tricks", icon: Swords, description: "Timed methods for quick solving." },
-      { title: "Memory Techniques", icon: Brain, description: "Retention frameworks for recall." },
-      { title: "Handwriting Improvement", icon: Hand, description: "Readable writing with structure." },
-      { title: "NEET/JEE Daily MCQs", icon: GraduationCap, description: "Practice with daily challenge sets." },
-      { title: "TNPSC Prep", icon: Languages, description: "Localized preparation for Tamil Nadu exams." },
-      { title: "Rank Predictor", icon: ChartLine, description: "Forecast rank from performance trends." },
-      { title: "Weak Area Detection", icon: ScanSearch, description: "Pinpoint topic-level performance gaps." },
-    ],
-  },
-  {
-    id: "pillar-b",
-    title: "Pillar B: The Viral AI Engine",
-    subtitle: "The smart layer that drives retention and referrals.",
-    accentClass: "from-emerald-500/20 via-blue-500/10 to-slate-950",
-    ringClass: "ring-emerald-400/30",
-    modules: [
-      { title: "AI Study Planner", icon: LayoutDashboard, description: "Adaptive weekly study plans." },
-      { title: "Homework Helper", icon: MessageSquareText, description: "Step-by-step homework guidance." },
-      { title: "Voice Tutor", icon: Mic, description: "Voice-based explanations in seconds." },
-      { title: "AI Notes Generator", icon: NotebookPen, description: "Auto-generated concise notes." },
-      { title: "AI Quiz Generator", icon: Sparkles, description: "Instant quizzes by chapter or topic." },
-    ],
-  },
-  {
-    id: "pillar-c",
-    title: "Pillar C: Skill & Future Readiness",
-    subtitle: "Beyond marks: communication, tech, and money skills.",
-    accentClass: "from-violet-500/20 via-blue-500/10 to-slate-950",
-    ringClass: "ring-violet-400/30",
-    modules: [
-      { title: "Public Speaking", icon: Speech, description: "Confidence-building speaking drills." },
-      { title: "Coding for Kids", icon: Code2, description: "Beginner-friendly logic and coding tracks." },
-      { title: "Robotics", icon: MonitorSmartphone, description: "Hands-on STEM exploration modules." },
-      { title: "Financial Literacy", icon: Wallet, description: "Budgeting, saving, and practical finance." },
-    ],
-  },
-  {
-    id: "pillar-d",
-    title: "Pillar D: Wellness & Productivity",
-    subtitle: "Sustainable performance through healthy routines.",
-    accentClass: "from-teal-500/20 via-blue-500/10 to-slate-950",
-    ringClass: "ring-teal-400/30",
-    modules: [
-      { title: "Focus Exercises", icon: Brain, description: "Daily concentration boosters." },
-      { title: "Exam Stress Management", icon: BadgeCheck, description: "Guided routines for calm preparation." },
-      { title: "Habit Tracker", icon: Clock3, description: "Track consistency and discipline streaks." },
-      { title: "Screen Time Monitor", icon: MonitorSmartphone, description: "Balanced digital learning windows." },
-    ],
-  },
-];
+const iconMap: Record<string, LucideIcon> = {
+  calculator: Calculator,
+  swords: Swords,
+  brain: Brain,
+  hand: Hand,
+  "graduation-cap": GraduationCap,
+  languages: Languages,
+  "chart-line": ChartLine,
+  "scan-search": ScanSearch,
+  "layout-dashboard": LayoutDashboard,
+  "message-square-text": MessageSquareText,
+  mic: Mic,
+  "notebook-pen": NotebookPen,
+  sparkles: Sparkles,
+  speech: Speech,
+  code2: Code2,
+  "monitor-smartphone": MonitorSmartphone,
+  wallet: Wallet,
+  "badge-check": BadgeCheck,
+  clock3: Clock3,
+};
+
+function iconForModule(module: LearningModule): LucideIcon {
+  return iconMap[module.iconKey] ?? Sparkles;
+}
 
 const containerMotion: Variants = {
   hidden: { opacity: 0, y: 28 },
@@ -206,7 +158,7 @@ export default function Home() {
         </motion.div>
 
         <div className="mt-10 space-y-8">
-          {pillars.map((pillar) => (
+          {modulePillars.map((pillar: ModulePillar) => (
             <motion.article
               key={pillar.id}
               id={pillar.id}
@@ -224,17 +176,28 @@ export default function Home() {
               </motion.p>
 
               <motion.div variants={containerMotion} className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {pillar.modules.map((module) => (
-                  <motion.div
-                    variants={itemMotion}
-                    key={module.title}
-                    className="rounded-xl border border-slate-700/70 bg-slate-900/75 p-4"
-                  >
-                    <module.icon className="size-6 text-cyan-300" aria-hidden />
-                    <h4 className="mt-3 text-base font-semibold text-white">{module.title}</h4>
-                    <p className="mt-1 text-sm text-slate-300">{module.description}</p>
-                  </motion.div>
-                ))}
+                {pillar.modules.map((module) => {
+                  const Icon = iconForModule(module);
+
+                  return (
+                    <motion.div
+                      variants={itemMotion}
+                      key={module.title}
+                      className="rounded-xl border border-slate-700/70 bg-slate-900/75 p-4"
+                    >
+                      <Icon className="size-6 text-cyan-300" aria-hidden />
+                      <h4 className="mt-3 text-base font-semibold text-white">{module.title}</h4>
+                      <p className="mt-1 text-sm text-slate-300">{module.description}</p>
+                      <p className="mt-2 text-xs text-emerald-300">{module.outcome}</p>
+                      <Link
+                        href={`/modules/${module.slug}`}
+                        className="mt-3 inline-flex text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                      >
+                        Open module
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </motion.div>
             </motion.article>
           ))}

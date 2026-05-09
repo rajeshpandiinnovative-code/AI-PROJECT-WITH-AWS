@@ -1,12 +1,45 @@
+import { sql } from "drizzle-orm";
 import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
+  text,
   timestamp,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+
+/**
+ * Pilot directory (global_schools): master list of schools (e.g. Srivilliputhur / Virudhunagar).
+ * Primary key on udise_code uses PostgreSQL’s default B-tree unique index.
+ */
+export const globalSchools = pgTable(
+  "global_schools",
+  {
+    udiseCode: varchar("udise_code", { length: 11 }).primaryKey(),
+    schoolName: text("school_name").notNull(),
+    schoolEmail: varchar("school_email", { length: 255 }),
+    mobileNumber: varchar("mobile_number", { length: 15 }),
+    principalName: text("principal_name"),
+    stateName: varchar("state_name", { length: 100 }),
+    districtName: varchar("district_name", { length: 100 }),
+    blockName: varchar("block_name", { length: 100 }),
+    pincode: varchar("pincode", { length: 6 }),
+    management: varchar("management", { length: 100 }),
+    category: varchar("category", { length: 100 }),
+    /** Filter in UI: e.g. CBSE, ICSE, TN-MATRIC */
+    boardName: text("board_name"),
+  },
+  (table) => ({
+    schoolNameGinIdx: index("global_schools_school_name_gin_idx").using(
+      "gin",
+      sql`${table.schoolName} gin_trgm_ops`,
+    ),
+    boardNameIdx: index("global_schools_board_name_idx").on(table.boardName),
+  }),
+);
 
 export const schools = pgTable("schools", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -71,5 +104,23 @@ export const results = pgTable(
   },
   (table) => ({
     schoolIdIdx: index("results_school_id_idx").on(table.schoolId),
+  }),
+);
+
+export const moduleHistories = pgTable(
+  "module_histories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    schoolId: text("school_id").notNull(),
+    moduleSlug: varchar("module_slug", { length: 128 }).notNull(),
+    moduleTitle: varchar("module_title", { length: 255 }).notNull(),
+    inputData: jsonb("input_data").notNull(),
+    outputData: jsonb("output_data").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    schoolIdIdx: index("module_histories_school_id_idx").on(table.schoolId),
+    moduleSlugIdx: index("module_histories_module_slug_idx").on(table.moduleSlug),
   }),
 );
