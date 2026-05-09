@@ -300,18 +300,36 @@ async function fetchHistory(moduleSlug: string): Promise<ModuleHistoryRow[]> {
   const response = await fetch(`/api/modules/history?moduleSlug=${encodeURIComponent(moduleSlug)}&limit=5`, {
     credentials: "include",
   });
+  if (response.status === 401) throw new Error("AUTH_REQUIRED");
   if (!response.ok) return [];
   const payload = (await response.json()) as { data?: ModuleHistoryRow[] };
   return payload.data ?? [];
 }
 
 async function saveHistory(moduleSlug: string, moduleTitle: string, inputData: unknown, outputData: unknown) {
-  await fetch("/api/modules/history", {
+  const response = await fetch("/api/modules/history", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ moduleSlug, moduleTitle, inputData, outputData }),
   });
+  if (response.status === 401) throw new Error("AUTH_REQUIRED");
+}
+
+function AuthRequiredBanner() {
+  return (
+    <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-950/30 p-3 text-sm text-amber-200">
+      <p className="font-semibold">Sign in and claim your school to save module history.</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <a href="/api/auth/signin" className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-slate-950">
+          Sign In
+        </a>
+        <a href="/onboarding" className="rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-200">
+          Claim School
+        </a>
+      </div>
+    </div>
+  );
 }
 
 function HistoryPanel({ title, rows }: { title: string; rows: ModuleHistoryRow[] }) {
@@ -444,6 +462,7 @@ function StudyPlannerWorkbench() {
   const [plan, setPlan] = useState<string[]>([]);
   const [summaryText, setSummaryText] = useState("");
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
+  const [authRequired, setAuthRequired] = useState(false);
 
   const classOptions = useMemo(
     () => ["Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12"],
@@ -501,12 +520,22 @@ function StudyPlannerWorkbench() {
     setSummaryText(summary);
     setStep(3);
 
-    void saveHistory(
-      "ai-study-planner",
-      "AI Study Planner",
-      { grade, goal, examDate, dailyHours, subjects: selectedSubjects, weakSubjects },
-      { revisionWeight, weeklyPlan: nextPlan, summary },
-    ).then(async () => setHistory(await fetchHistory("ai-study-planner")));
+    void (async () => {
+      try {
+        await saveHistory(
+          "ai-study-planner",
+          "AI Study Planner",
+          { grade, goal, examDate, dailyHours, subjects: selectedSubjects, weakSubjects },
+          { revisionWeight, weeklyPlan: nextPlan, summary },
+        );
+        setHistory(await fetchHistory("ai-study-planner"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   };
 
   const downloadSummary = () => {
@@ -521,7 +550,16 @@ function StudyPlannerWorkbench() {
   };
 
   useEffect(() => {
-    void fetchHistory("ai-study-planner").then(setHistory);
+    void (async () => {
+      try {
+        setHistory(await fetchHistory("ai-study-planner"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   }, []);
 
   return (
@@ -680,6 +718,7 @@ function StudyPlannerWorkbench() {
           ) : null}
         </div>
       ) : null}
+      {authRequired ? <AuthRequiredBanner /> : null}
       <HistoryPanel title="Recent Planner History" rows={history} />
     </section>
   );
@@ -697,6 +736,7 @@ function HomeworkHelperWorkbench() {
   const [challengeAnswer, setChallengeAnswer] = useState("");
   const [challengeFeedback, setChallengeFeedback] = useState<string | null>(null);
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
+  const [authRequired, setAuthRequired] = useState(false);
 
   const subjectOptions = useMemo(
     () => ["Maths", "Science", "English", "Social", "Tamil", "Computer Science"],
@@ -740,10 +780,15 @@ function HomeworkHelperWorkbench() {
           { guidedResponse: payload.answer },
         );
         setHistory(await fetchHistory("homework-helper"));
+        setAuthRequired(false);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Unknown error";
-        setError(msg);
-        setStep(1);
+        if (err instanceof Error && err.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        } else {
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          setError(msg);
+          setStep(1);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -764,17 +809,33 @@ function HomeworkHelperWorkbench() {
     setChallengeFeedback(feedback);
     setStep(3);
 
-    await saveHistory(
-      "homework-helper",
-      "Homework Helper",
-      { challengeAttempt: challengeAnswer, subject, topic },
-      { challengeFeedback: feedback, pass: confident },
-    );
-    setHistory(await fetchHistory("homework-helper"));
+    try {
+      await saveHistory(
+        "homework-helper",
+        "Homework Helper",
+        { challengeAttempt: challengeAnswer, subject, topic },
+        { challengeFeedback: feedback, pass: confident },
+      );
+      setHistory(await fetchHistory("homework-helper"));
+      setAuthRequired(false);
+    } catch (err) {
+      if (err instanceof Error && err.message === "AUTH_REQUIRED") {
+        setAuthRequired(true);
+      }
+    }
   };
 
   useEffect(() => {
-    void fetchHistory("homework-helper").then(setHistory);
+    void (async () => {
+      try {
+        setHistory(await fetchHistory("homework-helper"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   }, []);
 
   return (
@@ -875,6 +936,7 @@ function HomeworkHelperWorkbench() {
           {challengeFeedback ? <p className="mt-2 text-sm text-emerald-300">{challengeFeedback}</p> : null}
         </div>
       ) : null}
+      {authRequired ? <AuthRequiredBanner /> : null}
       <HistoryPanel title="Recent Homework Sessions" rows={history} />
     </section>
   );
@@ -892,6 +954,7 @@ function VedicMathsWorkbench() {
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [resultSummary, setResultSummary] = useState<string | null>(null);
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
+  const [authRequired, setAuthRequired] = useState(false);
 
   const regenerate = (level: VedicLevel) => {
     setQuestions(Array.from({ length: 10 }, (_, i) => createQuestionByLevel(i + 1, level)));
@@ -930,21 +993,31 @@ function VedicMathsWorkbench() {
       unlockNextLevel(activeLevel);
     }
 
-    void saveHistory(
-      "vedic-maths",
-      "Vedic Maths",
-      {
-        level: activeLevel,
-        timeRemaining: secondsLeft,
-        questions: questions.map((q) => ({ prompt: q.prompt, concept: q.concept })),
-        answers,
-      },
-      {
-        score: `${correct}/${questions.length}`,
-        accuracy: `${currentAccuracy}%`,
-        pass,
-      },
-    ).then(async () => setHistory(await fetchHistory("vedic-maths")));
+    void (async () => {
+      try {
+        await saveHistory(
+          "vedic-maths",
+          "Vedic Maths",
+          {
+            level: activeLevel,
+            timeRemaining: secondsLeft,
+            questions: questions.map((q) => ({ prompt: q.prompt, concept: q.concept })),
+            answers,
+          },
+          {
+            score: `${correct}/${questions.length}`,
+            accuracy: `${currentAccuracy}%`,
+            pass,
+          },
+        );
+        setHistory(await fetchHistory("vedic-maths"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   };
 
   useEffect(() => {
@@ -963,7 +1036,16 @@ function VedicMathsWorkbench() {
   }, [examStarted, secondsLeft]);
 
   useEffect(() => {
-    void fetchHistory("vedic-maths").then(setHistory);
+    void (async () => {
+      try {
+        setHistory(await fetchHistory("vedic-maths"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   }, []);
 
   return (
@@ -1061,6 +1143,7 @@ function VedicMathsWorkbench() {
         </>
       )}
       <VedicChatPanel level={activeLevel} />
+      {authRequired ? <AuthRequiredBanner /> : null}
       <HistoryPanel title="Recent Practice Scores" rows={history} />
     </section>
   );
@@ -1112,9 +1195,19 @@ function QuizGeneratorWorkbench() {
   const [score, setScore] = useState<number | null>(null);
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [authRequired, setAuthRequired] = useState(false);
 
   useEffect(() => {
-    void fetchHistory("ai-quiz-generator").then(setHistory);
+    void (async () => {
+      try {
+        setHistory(await fetchHistory("ai-quiz-generator"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   }, []);
 
   const generateQuiz = async () => {
@@ -1130,8 +1223,15 @@ function QuizGeneratorWorkbench() {
       const items = payload.data?.quiz ?? [];
       setQuiz(items);
       setAnswers({});
-      await saveHistory("ai-quiz-generator", "AI Quiz Generator", { grade, subject, topic, difficulty }, { generated: items.length });
-      setHistory(await fetchHistory("ai-quiz-generator"));
+      try {
+        await saveHistory("ai-quiz-generator", "AI Quiz Generator", { grade, subject, topic, difficulty }, { generated: items.length });
+        setHistory(await fetchHistory("ai-quiz-generator"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -1140,12 +1240,22 @@ function QuizGeneratorWorkbench() {
   const submitQuiz = () => {
     const correct = quiz.filter((q, idx) => answers[idx] === q.answer).length;
     setScore(correct);
-    void saveHistory(
-      "ai-quiz-generator",
-      "AI Quiz Generator",
-      { attempted: quiz.length, answers },
-      { score: `${correct}/${quiz.length}` },
-    ).then(async () => setHistory(await fetchHistory("ai-quiz-generator")));
+    void (async () => {
+      try {
+        await saveHistory(
+          "ai-quiz-generator",
+          "AI Quiz Generator",
+          { attempted: quiz.length, answers },
+          { score: `${correct}/${quiz.length}` },
+        );
+        setHistory(await fetchHistory("ai-quiz-generator"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   };
 
   return (
@@ -1186,6 +1296,7 @@ function QuizGeneratorWorkbench() {
           {score !== null ? <p className="text-sm text-emerald-300">Score: {score}/{quiz.length}</p> : null}
         </div>
       ) : null}
+      {authRequired ? <AuthRequiredBanner /> : null}
       <HistoryPanel title="Recent Quiz Activity" rows={history} />
     </section>
   );
@@ -1199,9 +1310,19 @@ function NotesGeneratorWorkbench() {
   const [notes, setNotes] = useState("");
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [authRequired, setAuthRequired] = useState(false);
 
   useEffect(() => {
-    void fetchHistory("ai-notes-generator").then(setHistory);
+    void (async () => {
+      try {
+        setHistory(await fetchHistory("ai-notes-generator"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   }, []);
 
   const generateNotes = async () => {
@@ -1215,8 +1336,15 @@ function NotesGeneratorWorkbench() {
       const payload = (await response.json()) as { notes?: string };
       const text = payload.notes ?? "Unable to generate notes.";
       setNotes(text);
-      await saveHistory("ai-notes-generator", "AI Notes Generator", { grade, subject, topic, style }, { generated: Boolean(payload.notes) });
-      setHistory(await fetchHistory("ai-notes-generator"));
+      try {
+        await saveHistory("ai-notes-generator", "AI Notes Generator", { grade, subject, topic, style }, { generated: Boolean(payload.notes) });
+        setHistory(await fetchHistory("ai-notes-generator"));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -1241,6 +1369,7 @@ function NotesGeneratorWorkbench() {
       {notes ? (
         <textarea readOnly value={notes} className="mt-4 h-64 w-full rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-200" />
       ) : null}
+      {authRequired ? <AuthRequiredBanner /> : null}
       <HistoryPanel title="Recent Notes Activity" rows={history} />
     </section>
   );
@@ -1265,31 +1394,55 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
   const [challengeQuestions] = useState<ChallengeQuestion[]>(() => buildChallengeSet(moduleSlug, moduleTitle));
   const [challengeAnswers, setChallengeAnswers] = useState<Record<number, string>>({});
   const [challengeScore, setChallengeScore] = useState<number | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
 
   useEffect(() => {
-    void fetchHistory(moduleSlug).then(setHistory);
+    void (async () => {
+      try {
+        setHistory(await fetchHistory(moduleSlug));
+        setAuthRequired(false);
+      } catch (error) {
+        if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+          setAuthRequired(true);
+        }
+      }
+    })();
   }, [moduleSlug]);
 
   const savePractice = async () => {
-    await saveHistory(
-      moduleSlug,
-      moduleTitle,
-      { mode: "practice", notes: practiceNotes },
-      { completed: practiceDone, activity: blueprint.practiceTask },
-    );
-    setHistory(await fetchHistory(moduleSlug));
+    try {
+      await saveHistory(
+        moduleSlug,
+        moduleTitle,
+        { mode: "practice", notes: practiceNotes },
+        { completed: practiceDone, activity: blueprint.practiceTask },
+      );
+      setHistory(await fetchHistory(moduleSlug));
+      setAuthRequired(false);
+    } catch (error) {
+      if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+        setAuthRequired(true);
+      }
+    }
   };
 
   const submitChallenge = async () => {
     const correct = challengeQuestions.filter((q) => challengeAnswers[q.id] === q.answer).length;
     setChallengeScore(correct);
-    await saveHistory(
-      moduleSlug,
-      moduleTitle,
-      { mode: "challenge", answers: challengeAnswers },
-      { score: `${correct}/${challengeQuestions.length}`, theme: blueprint.challengeTheme },
-    );
-    setHistory(await fetchHistory(moduleSlug));
+    try {
+      await saveHistory(
+        moduleSlug,
+        moduleTitle,
+        { mode: "challenge", answers: challengeAnswers },
+        { score: `${correct}/${challengeQuestions.length}`, theme: blueprint.challengeTheme },
+      );
+      setHistory(await fetchHistory(moduleSlug));
+      setAuthRequired(false);
+    } catch (error) {
+      if (error instanceof Error && error.message === "AUTH_REQUIRED") {
+        setAuthRequired(true);
+      }
+    }
   };
 
   return (
@@ -1380,6 +1533,7 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
         </div>
       ) : null}
 
+      {authRequired ? <AuthRequiredBanner /> : null}
       <HistoryPanel title="Recent Module Progress" rows={history} />
     </section>
   );
