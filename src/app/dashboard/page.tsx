@@ -29,6 +29,16 @@ function parsePercent(value: unknown): number | null {
   return Math.round(Number(match[1]));
 }
 
+function buildInterventionAction(moduleTitle: string, avgScore: number | null, trend: number | null): string {
+  if (avgScore !== null && avgScore < 50) {
+    return `Run a 3-day reteach sprint for ${moduleTitle} with daily 10-question checkpoints.`;
+  }
+  if (trend !== null && trend < 0) {
+    return `Start correction loops in ${moduleTitle}: mistake log + next-day re-attempt drills.`;
+  }
+  return `Maintain guided practice in ${moduleTitle} and increase challenge difficulty gradually.`;
+}
+
 export default async function DashboardPage() {
   const session = await auth();
   const schoolId = session?.user?.schoolId;
@@ -146,6 +156,26 @@ export default async function DashboardPage() {
       ? Math.round(scoreRows.reduce((sum, row) => sum + (row.avgScore ?? 0), 0) / scoreRows.length)
       : null;
   const improvingCount = moduleRows.filter((row) => typeof row.trend === "number" && row.trend > 0).length;
+  const classAverageMarks =
+    recentResults.length > 0
+      ? Math.round(recentResults.reduce((sum, row) => sum + Number(row.marks ?? 0), 0) / recentResults.length)
+      : null;
+  const atRiskResultCount = recentResults.filter((row) => Number(row.marks ?? 0) < 40).length;
+
+  const weakModuleSignals = moduleRows
+    .filter((row) => (row.avgScore !== null && row.avgScore < 60) || (row.trend !== null && row.trend < 0))
+    .map((row) => ({
+      ...row,
+      riskLevel:
+        row.avgScore !== null && row.avgScore < 50 ? "high" : row.trend !== null && row.trend < -10 ? "high" : "medium",
+      action: buildInterventionAction(row.title, row.avgScore, row.trend),
+    }))
+    .sort((a, b) => {
+      const aRisk = a.riskLevel === "high" ? 2 : 1;
+      const bRisk = b.riskLevel === "high" ? 2 : 1;
+      if (aRisk !== bRisk) return bRisk - aRisk;
+      return (a.avgScore ?? 100) - (b.avgScore ?? 100);
+    });
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-zinc-100">
@@ -245,6 +275,56 @@ export default async function DashboardPage() {
                       {row.trend === null ? "--" : row.trend >= 0 ? `+${row.trend}%` : `${row.trend}%`}
                     </span>
                   </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mt-12">
+          <h2 className="text-lg font-semibold text-white">Teacher insights</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Class average</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-white">
+                {classAverageMarks !== null ? `${classAverageMarks}` : "--"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">At-risk submissions</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-300">{atRiskResultCount}</p>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Weak module signals</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-rose-300">{weakModuleSignals.length}</p>
+            </div>
+          </div>
+
+          {weakModuleSignals.length === 0 ? (
+            <p className="mt-4 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
+              No weak-topic signals detected right now. Continue monitoring module trend and exam outcomes weekly.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {weakModuleSignals.slice(0, 5).map((signal) => (
+                <li key={signal.slug} className="rounded-xl border border-slate-700 bg-[#1E293B] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-white">{signal.title}</p>
+                    <span
+                      className={`rounded-md border px-2 py-1 text-xs font-medium ${
+                        signal.riskLevel === "high"
+                          ? "border-rose-500/40 text-rose-300"
+                          : "border-amber-500/40 text-amber-300"
+                      }`}
+                    >
+                      {signal.riskLevel === "high" ? "High Risk" : "Medium Risk"}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-400">
+                    Avg score: {signal.avgScore !== null ? `${signal.avgScore}%` : "--"} · Trend:{" "}
+                    {signal.trend === null ? "--" : signal.trend >= 0 ? `+${signal.trend}%` : `${signal.trend}%`}
+                  </p>
+                  <p className="mt-2 text-sm text-cyan-200">{signal.action}</p>
                 </li>
               ))}
             </ul>
