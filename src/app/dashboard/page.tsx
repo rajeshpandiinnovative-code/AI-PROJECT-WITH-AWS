@@ -230,6 +230,8 @@ export default async function DashboardPage() {
   const latestCronAgeHours = latestCronRun
     ? Math.floor((Date.now() - latestCronRun.createdAt.getTime()) / (1000 * 60 * 60))
     : null;
+  const cronDelayStatus =
+    latestCronAgeHours === null ? "never" : latestCronAgeHours > 30 ? "delayed" : "on-time";
   const latestDigest = await db.query.interventionDailyDigests.findFirst({
     where: eq(interventionDailyDigests.schoolId, schoolId),
     orderBy: [desc(interventionDailyDigests.createdAt)],
@@ -479,6 +481,22 @@ export default async function DashboardPage() {
             ) : (
               "Last cron run: not detected yet."
             )}
+          </div>
+          <div
+            className={`mt-2 inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${
+              cronDelayStatus === "on-time"
+                ? "border-emerald-500/40 text-emerald-300"
+                : cronDelayStatus === "delayed"
+                  ? "border-amber-500/40 text-amber-300"
+                  : "border-rose-500/40 text-rose-300"
+            }`}
+          >
+            Cron health:{" "}
+            {cronDelayStatus === "on-time"
+              ? "On-time"
+              : cronDelayStatus === "delayed"
+                ? "Delayed - check scheduler now"
+                : "Never ran - configure cron"}
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             <div className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs">
