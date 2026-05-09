@@ -6,6 +6,7 @@
  *   node scripts/run-digest-cron.mjs --schoolId <uuid>
  *   node scripts/run-digest-cron.mjs --limit 200
  *   node scripts/run-digest-cron.mjs --baseUrl https://your-domain.com
+ *   node scripts/run-digest-cron.mjs --dryRun
  *   node scripts/run-digest-cron.mjs --help
  */
 import { config } from "dotenv";
@@ -29,6 +30,7 @@ Options:
   --schoolId <uuid>   Generate digest for one school only
   --limit <number>    Max number of schools in batch mode (default 200)
   --baseUrl <url>     Override API base URL
+  --dryRun            Validate target scope without writing digests
   --help              Show this message
 `);
 }
@@ -53,17 +55,18 @@ const baseUrl =
 
 const schoolId = readArg("--schoolId").trim();
 const limitRaw = readArg("--limit").trim();
+const dryRun = hasFlag("--dryRun");
 const limit = limitRaw ? Number(limitRaw) : 200;
 if (!Number.isInteger(limit) || limit <= 0) {
   console.error("--limit must be a positive integer.");
   process.exit(1);
 }
 
-const payload = schoolId ? { schoolId } : { limit };
+const payload = schoolId ? { schoolId, dryRun } : { limit, dryRun };
 
 const endpoint = `${baseUrl.replace(/\/+$/, "")}/api/interventions/digest`;
 console.log(`POST ${endpoint}`);
-console.log(`Mode: ${schoolId ? `single school (${schoolId})` : `batch (limit ${limit})`}`);
+console.log(`Mode: ${schoolId ? `single school (${schoolId})` : `batch (limit ${limit})`}${dryRun ? " [dry-run]" : ""}`);
 
 try {
   const response = await fetch(endpoint, {

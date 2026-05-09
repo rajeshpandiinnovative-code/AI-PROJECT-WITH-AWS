@@ -9,6 +9,7 @@ import { generateDailyDigestForSchool } from "@/src/lib/intervention-digest";
 const bodySchema = z.object({
   schoolId: z.string().uuid().optional(),
   limit: z.number().int().min(1).max(500).optional(),
+  dryRun: z.boolean().optional(),
 });
 
 function extractToken(request: Request): string {
@@ -47,6 +48,20 @@ export async function POST(request: Request) {
       const limit = parsedBody.limit ?? 200;
       const rows = await db.select({ id: schools.id }).from(schools).limit(limit);
       schoolIds = rows.map((row) => row.id);
+    }
+    const dryRun = parsedBody.dryRun === true;
+
+    if (dryRun) {
+      return NextResponse.json(
+        {
+          data: {
+            dryRun: true,
+            processedSchools: schoolIds.length,
+            schoolIds,
+          },
+        },
+        { status: 200 },
+      );
     }
 
     const summaries: Array<{ schoolId: string; digestDate: string; openCount: number; overdueCount: number; criticalCount: number }> = [];
