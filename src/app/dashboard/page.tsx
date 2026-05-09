@@ -223,6 +223,9 @@ export default async function DashboardPage() {
   const recentDigestRuns = digestRunHistory.filter((run) => run.createdAt >= sevenDaysAgo);
   const manualDigestRuns7d = recentDigestRuns.filter((run) => run.actionType === "daily_digest_generate").length;
   const cronDigestRuns7d = recentDigestRuns.filter((run) => run.actionType === "daily_digest_generate_cron").length;
+  const automationShare7d =
+    recentDigestRuns.length > 0 ? Math.round((cronDigestRuns7d / recentDigestRuns.length) * 100) : 0;
+  const automationStatus = automationShare7d >= 80 ? "strong" : automationShare7d >= 40 ? "partial" : "low";
   const latestDigest = await db.query.interventionDailyDigests.findFirst({
     where: eq(interventionDailyDigests.schoolId, schoolId),
     orderBy: [desc(interventionDailyDigests.createdAt)],
@@ -443,6 +446,22 @@ export default async function DashboardPage() {
 
         <section className="mt-8 rounded-xl border border-slate-700 bg-[#1E293B] p-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">Digest run history</h2>
+          <div
+            className={`mt-2 rounded-lg border px-3 py-2 text-xs ${
+              automationStatus === "strong"
+                ? "border-emerald-500/40 bg-emerald-950/20 text-emerald-200"
+                : automationStatus === "partial"
+                  ? "border-amber-500/40 bg-amber-950/20 text-amber-200"
+                  : "border-rose-500/40 bg-rose-950/20 text-rose-200"
+            }`}
+          >
+            Automation share (7d): {automationShare7d}%{" "}
+            {automationStatus === "strong"
+              ? "· Cron coverage is healthy."
+              : automationStatus === "partial"
+                ? "· Mix of manual and cron runs; increase scheduler reliability."
+                : "· Mostly manual runs; validate DIGEST_CRON_TOKEN and scheduler setup."}
+          </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             <div className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2 text-xs">
               <p className="text-slate-400">Runs last 7d</p>
