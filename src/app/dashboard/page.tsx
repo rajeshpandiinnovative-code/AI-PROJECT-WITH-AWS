@@ -82,8 +82,10 @@ export default async function DashboardPage() {
   const fromIsoDate = thirtyDaysAgo.toISOString().slice(0, 10);
   const trackerExportAllHref = "/api/interventions/export?type=tracker";
   const trackerExport30dHref = `/api/interventions/export?type=tracker&from=${fromIsoDate}&to=${nowIsoDate}`;
+  const trackerExportHomeworkHref = "/api/interventions/export?type=tracker&module=Homework%20Helper";
   const auditExportAllHref = "/api/interventions/export?type=audit";
   const auditExport30dHref = `/api/interventions/export?type=audit&from=${fromIsoDate}&to=${nowIsoDate}`;
+  const auditExportBulkCriticalHref = "/api/interventions/export?type=audit&actionType=bulk_complete_critical";
 
   const [studentStat] = await db
     .select({ n: count() })
@@ -498,6 +500,12 @@ export default async function DashboardPage() {
             >
               Download tracker CSV (last 30d)
             </a>
+            <a
+              href={trackerExportHomeworkHref}
+              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+            >
+              Download tracker CSV (Homework Helper)
+            </a>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
@@ -600,6 +608,12 @@ export default async function DashboardPage() {
               className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
             >
               Download audit CSV (last 30d)
+            </a>
+            <a
+              href={auditExportBulkCriticalHref}
+              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+            >
+              Download audit CSV (bulk critical only)
             </a>
           </div>
           {recentAuditLogs.length === 0 ? (

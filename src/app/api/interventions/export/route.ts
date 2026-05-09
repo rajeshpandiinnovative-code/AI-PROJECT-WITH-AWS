@@ -29,6 +29,8 @@ export async function GET(request: Request) {
     const type = searchParams.get("type");
     const fromParam = searchParams.get("from");
     const toParam = searchParams.get("to");
+    const moduleParam = searchParams.get("module");
+    const actionTypeParam = searchParams.get("actionType");
 
     const fromDate = fromParam ? new Date(fromParam) : null;
     const toDate = toParam ? new Date(toParam) : null;
@@ -41,11 +43,18 @@ export async function GET(request: Request) {
     if (fromDate && toDate && fromDate > toDate) {
       return NextResponse.json({ error: "from must be <= to" }, { status: 400 });
     }
+    if (moduleParam && moduleParam.length > 128) {
+      return NextResponse.json({ error: "Invalid module filter" }, { status: 400 });
+    }
+    if (actionTypeParam && actionTypeParam.length > 64) {
+      return NextResponse.json({ error: "Invalid actionType filter" }, { status: 400 });
+    }
 
     if (type === "tracker") {
       const tasks = await db.query.interventionTasks.findMany({
         where: and(
           eq(interventionTasks.schoolId, schoolId),
+          moduleParam ? eq(interventionTasks.recommendedModule, moduleParam) : undefined,
           fromDate ? gte(interventionTasks.createdAt, fromDate) : undefined,
           toDate ? lte(interventionTasks.createdAt, toDate) : undefined,
         ),
@@ -81,6 +90,7 @@ export async function GET(request: Request) {
       const logs = await db.query.interventionAuditLogs.findMany({
         where: and(
           eq(interventionAuditLogs.schoolId, schoolId),
+          actionTypeParam ? eq(interventionAuditLogs.actionType, actionTypeParam) : undefined,
           fromDate ? gte(interventionAuditLogs.createdAt, fromDate) : undefined,
           toDate ? lte(interventionAuditLogs.createdAt, toDate) : undefined,
         ),
