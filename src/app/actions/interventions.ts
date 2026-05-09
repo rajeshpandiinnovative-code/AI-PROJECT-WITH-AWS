@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -62,6 +62,80 @@ export async function completeIntervention(taskId: string) {
     .update(interventionTasks)
     .set({ status: "completed", updatedAt: new Date() })
     .where(and(eq(interventionTasks.id, parsedTaskId), eq(interventionTasks.schoolId, schoolId)));
+
+  revalidatePath("/dashboard");
+}
+
+export async function bulkFollowUpOverdueInterventions() {
+  const schoolId = await getCurrentSessionSchoolId();
+  const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+  const overdueAssigned = await db
+    .select({ id: interventionTasks.id })
+    .from(interventionTasks)
+    .where(
+      and(
+        eq(interventionTasks.schoolId, schoolId),
+        eq(interventionTasks.status, "assigned"),
+        lt(interventionTasks.createdAt, cutoff),
+      ),
+    )
+    .limit(50);
+
+  if (overdueAssigned.length === 0) {
+    revalidatePath("/dashboard");
+    return;
+  }
+
+  await db
+    .update(interventionTasks)
+    .set({ updatedAt: new Date() })
+    .where(
+      and(
+        eq(interventionTasks.schoolId, schoolId),
+        inArray(
+          interventionTasks.id,
+          overdueAssigned.map((row) => row.id),
+        ),
+      ),
+    );
+
+  revalidatePath("/dashboard");
+}
+
+export async function bulkCompleteOverdueInterventions() {
+  const schoolId = await getCurrentSessionSchoolId();
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const criticalOverdue = await db
+    .select({ id: interventionTasks.id })
+    .from(interventionTasks)
+    .where(
+      and(
+        eq(interventionTasks.schoolId, schoolId),
+        eq(interventionTasks.status, "assigned"),
+        lt(interventionTasks.createdAt, cutoff),
+      ),
+    )
+    .limit(25);
+
+  if (criticalOverdue.length === 0) {
+    revalidatePath("/dashboard");
+    return;
+  }
+
+  await db
+    .update(interventionTasks)
+    .set({ status: "completed", updatedAt: new Date() })
+    .where(
+      and(
+        eq(interventionTasks.schoolId, schoolId),
+        inArray(
+          interventionTasks.id,
+          criticalOverdue.map((row) => row.id),
+        ),
+      ),
+    );
 
   revalidatePath("/dashboard");
 }

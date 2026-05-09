@@ -4,7 +4,12 @@ import { redirect } from "next/navigation";
 import { LayoutDashboard, ExternalLink, ScanLine } from "lucide-react";
 
 import { auth } from "@/auth";
-import { assignIntervention, completeIntervention } from "@/src/app/actions/interventions";
+import {
+  assignIntervention,
+  bulkCompleteOverdueInterventions,
+  bulkFollowUpOverdueInterventions,
+  completeIntervention,
+} from "@/src/app/actions/interventions";
 import { db } from "@/src/lib/db";
 import { allModules } from "@/src/lib/modules";
 import { exams, interventionTasks, moduleHistories, results, schools, students } from "@/src/db/schema";
@@ -463,6 +468,26 @@ export default async function DashboardPage() {
               <p className="text-xs uppercase tracking-wide text-slate-500">Critical delay (&gt;7 days)</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums text-rose-300">{criticalDelayCount}</p>
             </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <form action={bulkFollowUpOverdueInterventions}>
+              <button
+                type="submit"
+                disabled={overdueInterventionCount === 0}
+                className="rounded-md border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-200 disabled:opacity-40"
+              >
+                Follow-up all overdue
+              </button>
+            </form>
+            <form action={bulkCompleteOverdueInterventions}>
+              <button
+                type="submit"
+                disabled={criticalDelayCount === 0}
+                className="rounded-md border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-300 disabled:opacity-40"
+              >
+                Complete critical delays
+              </button>
+            </form>
           </div>
           {recentInterventions.length === 0 ? (
             <p className="mt-3 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
