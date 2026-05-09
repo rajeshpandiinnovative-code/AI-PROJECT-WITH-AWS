@@ -1,0 +1,317 @@
+import Link from "next/link";
+import { count, desc, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { LayoutDashboard, ExternalLink, ScanLine } from "lucide-react";
+
+import { auth } from "@/auth";
+import { db } from "@/src/lib/db";
+import { allModules } from "@/src/lib/modules";
+import { exams, moduleHistories, results, schools, students } from "@/src/db/schema";
+
+import { PilotNav } from "@/src/components/PilotNav";
+
+export const dynamic = "force-dynamic";
+
+function parseScoreRatio(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (!match) return null;
+  const numerator = Number(match[1]);
+  const denominator = Number(match[2]);
+  if (denominator <= 0) return null;
+  return Math.round((numerator / denominator) * 100);
+}
+
+function parsePercent(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^(\d+(?:\.\d+)?)%$/);
+  if (!match) return null;
+  return Math.round(Number(match[1]));
+}
+
+export default async function DashboardPage() {
+  const session = await auth();
+  const schoolId = session?.user?.schoolId;
+  if (!schoolId) {
+    redirect("/onboarding");
+  }
+
+  const school = await db.query.schools.findFirst({
+    where: eq(schools.id, schoolId),
+  });
+
+  if (!school) {
+    redirect("/onboarding");
+  }
+
+  const [studentStat] = await db
+    .select({ n: count() })
+    .from(students)
+    .where(eq(students.schoolId, schoolId));
+  const [examStat] = await db
+    .select({ n: count() })
+    .from(exams)
+    .where(eq(exams.schoolId, schoolId));
+  const [resultStat] = await db
+    .select({ n: count() })
+    .from(results)
+    .where(eq(results.schoolId, schoolId));
+
+  const studentCount = Number(studentStat?.n ?? 0);
+  const examCount = Number(examStat?.n ?? 0);
+  const resultCount = Number(resultStat?.n ?? 0);
+
+  const recentResults = await db
+    .select({
+      id: results.id,
+      marks: results.marks,
+      createdAt: results.createdAt,
+      studentName: students.name,
+      examName: exams.name,
+    })
+    .from(results)
+    .innerJoin(students, eq(results.studentId, students.id))
+    .innerJoin(exams, eq(results.examId, exams.id))
+    .where(eq(results.schoolId, schoolId))
+    .orderBy(desc(results.createdAt))
+    .limit(12);
+
+  const recentModuleEvents = await db.query.moduleHistories.findMany({
+    where: eq(moduleHistories.schoolId, schoolId),
+    orderBy: [desc(moduleHistories.createdAt)],
+    limit: 200,
+  });
+
+  const moduleTitleMap = new Map(allModules.map((m) => [m.slug, m.title]));
+  const moduleSummary = new Map<
+    string,
+    {
+      slug: string;
+      title: string;
+      attempts: number;
+      lastActive: Date;
+      scorePoints: number[];
+    }
+  >();
+
+  for (const event of recentModuleEvents) {
+    const key = event.moduleSlug;
+    const current = moduleSummary.get(key) ?? {
+      slug: key,
+      title: moduleTitleMap.get(key) ?? event.moduleTitle ?? key,
+      attempts: 0,
+      lastActive: event.createdAt,
+      scorePoints: [],
+    };
+    current.attempts += 1;
+    if (event.createdAt > current.lastActive) current.lastActive = event.createdAt;
+
+    if (event.outputData && typeof event.outputData === "object" && !Array.isArray(event.outputData)) {
+      const output = event.outputData as Record<string, unknown>;
+      const ratioScore = parseScoreRatio(output.score);
+      const percentScore = parsePercent(output.accuracy);
+      const scoreValue = ratioScore ?? percentScore;
+      if (typeof scoreValue === "number") {
+        current.scorePoints.push(scoreValue);
+      }
+    }
+
+    moduleSummary.set(key, current);
+  }
+
+  const moduleRows = [...moduleSummary.values()]
+    .map((row) => {
+      const attempts = row.attempts;
+      const avgScore =
+        row.scorePoints.length > 0
+          ? Math.round(row.scorePoints.reduce((sum, v) => sum + v, 0) / row.scorePoints.length)
+          : null;
+      const trend =
+        row.scorePoints.length >= 2 ? row.scorePoints[row.scorePoints.length - 1]! - row.scorePoints[0]! : null;
+
+      return {
+        ...row,
+        attempts,
+        avgScore,
+        trend,
+      };
+    })
+    .sort((a, b) => b.attempts - a.attempts);
+
+  const totalModuleAttempts = moduleRows.reduce((sum, row) => sum + row.attempts, 0);
+  const activeModuleCount = moduleRows.length;
+  const scoreRows = moduleRows.filter((row) => typeof row.avgScore === "number");
+  const averageModuleScore =
+    scoreRows.length > 0
+      ? Math.round(scoreRows.reduce((sum, row) => sum + (row.avgScore ?? 0), 0) / scoreRows.length)
+      : null;
+  const improvingCount = moduleRows.filter((row) => typeof row.trend === "number" && row.trend > 0).length;
+
+  return (
+    <div className="min-h-screen bg-[#0F172A] text-zinc-100">
+      <header className="border-b border-slate-700/80 bg-[#1E293B]/80 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-4 px-4 py-4">
+          <Link
+            href="/"
+            className="text-sm font-medium text-slate-300 transition hover:text-white"
+          >
+            ← Home
+          </Link>
+          <PilotNav />
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+        <div className="mb-2 inline-flex items-center gap-2 text-emerald-400">
+          <LayoutDashboard className="size-5" aria-hidden />
+          <span className="text-xs font-semibold uppercase tracking-wider">Pilot console</span>
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{school.name}</h1>
+        <p className="mt-2 font-mono text-sm text-slate-400">UDISE {school.udiseCode}</p>
+        <p className="mt-1 text-slate-400">
+          {school.district} · {school.board}
+        </p>
+
+        <dl className="mt-8 grid grid-cols-3 gap-3 text-center sm:max-w-md sm:text-left">
+          <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Students</dt>
+            <dd className="mt-1 text-2xl font-semibold tabular-nums text-white">{studentCount}</dd>
+          </div>
+          <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Exams</dt>
+            <dd className="mt-1 text-2xl font-semibold tabular-nums text-white">{examCount}</dd>
+          </div>
+          <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Results</dt>
+            <dd className="mt-1 text-2xl font-semibold tabular-nums text-white">{resultCount}</dd>
+          </div>
+        </dl>
+
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-white">Module analytics</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Attempts</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-white">{totalModuleAttempts}</p>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Active modules</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-white">{activeModuleCount}</p>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Avg score</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-emerald-400">
+                {averageModuleScore !== null ? `${averageModuleScore}%` : "--"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-700 bg-[#1E293B] px-3 py-4">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Improving modules</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-cyan-300">{improvingCount}</p>
+            </div>
+          </div>
+
+          {moduleRows.length === 0 ? (
+            <p className="mt-4 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-6 text-sm text-slate-400">
+              No module activity yet. Once learners use modules, trend and score analytics will appear here.
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y divide-slate-700/80 rounded-xl border border-slate-700 bg-[#1E293B]">
+              {moduleRows.slice(0, 8).map((row) => (
+                <li key={row.slug} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-white">{row.title}</p>
+                    <p className="text-xs text-slate-400">
+                      {row.attempts} attempts · Last active{" "}
+                      {row.lastActive.toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    <span className="rounded-md border border-slate-600 px-2 py-1 text-slate-300">
+                      Avg: {row.avgScore !== null ? `${row.avgScore}%` : "--"}
+                    </span>
+                    <span
+                      className={`rounded-md border px-2 py-1 ${
+                        row.trend === null
+                          ? "border-slate-600 text-slate-400"
+                          : row.trend >= 0
+                            ? "border-emerald-500/40 text-emerald-300"
+                            : "border-rose-500/40 text-rose-300"
+                      }`}
+                    >
+                      Trend:{" "}
+                      {row.trend === null ? "--" : row.trend >= 0 ? `+${row.trend}%` : `${row.trend}%`}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mt-12">
+          <h2 className="text-lg font-semibold text-white">Recent results</h2>
+          {recentResults.length === 0 ? (
+            <p className="mt-3 rounded-xl border border-dashed border-slate-600 bg-[#1E293B]/40 px-4 py-8 text-center text-sm text-slate-400">
+              No graded submissions yet. Run a scan from your classroom — marks saved here will appear in this list.
+            </p>
+          ) : (
+            <ul className="mt-4 divide-y divide-slate-700/80 rounded-xl border border-slate-700 bg-[#1E293B]">
+              {recentResults.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-white">{r.studentName}</p>
+                    <p className="truncate text-sm text-slate-400">{r.examName}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-4 text-sm">
+                    <span className="tabular-nums font-semibold text-emerald-400">{r.marks} marks</span>
+                    <time className="text-xs text-slate-500" dateTime={r.createdAt.toISOString()}>
+                      {r.createdAt.toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </time>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+          <Link
+            href="/scanner"
+            className="group flex flex-col rounded-2xl border border-slate-600 bg-[#1E293B] p-6 transition hover:border-emerald-500/50 hover:bg-slate-800/80"
+          >
+            <ScanLine className="size-8 text-emerald-400" aria-hidden />
+            <span className="mt-4 text-lg font-semibold text-white">Scan &amp; grade</span>
+            <span className="mt-1 text-sm text-slate-400">Open the camera flow with your tenant session.</span>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-emerald-400 group-hover:underline">
+              Open <ExternalLink className="size-3.5" aria-hidden />
+            </span>
+          </Link>
+          <Link
+            href="/health"
+            className="group flex flex-col rounded-2xl border border-slate-600 bg-[#1E293B] p-6 transition hover:border-emerald-500/50 hover:bg-slate-800/80"
+          >
+            <span className="text-2xl" aria-hidden>
+              ✓
+            </span>
+            <span className="mt-4 text-lg font-semibold text-white">System health</span>
+            <span className="mt-1 text-sm text-slate-400">
+              Verify database, auth, Gemini, and Vision credentials.
+            </span>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-emerald-400 group-hover:underline">
+              Open <ExternalLink className="size-3.5" aria-hidden />
+            </span>
+          </Link>
+        </div>
+      </main>
+    </div>
+  );
+}
