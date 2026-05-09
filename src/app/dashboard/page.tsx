@@ -60,6 +60,8 @@ function formatAuditAction(actionType: string): string {
   if (actionType === "bulk_complete_critical") return "Bulk complete critical";
   if (actionType === "single_assign") return "Single assignment";
   if (actionType === "single_complete") return "Single completion";
+  if (actionType === "daily_digest_generate") return "Daily digest (manual)";
+  if (actionType === "daily_digest_generate_cron") return "Daily digest (cron)";
   return actionType;
 }
 
@@ -195,6 +197,28 @@ export default async function DashboardPage() {
     orderBy: [desc(interventionAuditLogs.createdAt)],
     limit: 8,
   });
+  const digestRunLogs = await db.query.interventionAuditLogs.findMany({
+    where: eq(interventionAuditLogs.schoolId, schoolId),
+    orderBy: [desc(interventionAuditLogs.createdAt)],
+    limit: 30,
+  });
+  const digestRunHistory = digestRunLogs
+    .filter((log) => log.actionType === "daily_digest_generate" || log.actionType === "daily_digest_generate_cron")
+    .slice(0, 8)
+    .map((log) => {
+      const metadata = (log.metadata ?? {}) as Record<string, unknown>;
+      const openCount = typeof metadata.openCount === "number" ? metadata.openCount : null;
+      const overdueCount = typeof metadata.overdueCount === "number" ? metadata.overdueCount : null;
+      const criticalCount = typeof metadata.criticalCount === "number" ? metadata.criticalCount : null;
+      return {
+        id: log.id,
+        actionType: log.actionType,
+        createdAt: log.createdAt,
+        openCount,
+        overdueCount,
+        criticalCount,
+      };
+    });
   const latestDigest = await db.query.interventionDailyDigests.findFirst({
     where: eq(interventionDailyDigests.schoolId, schoolId),
     orderBy: [desc(interventionDailyDigests.createdAt)],
@@ -391,6 +415,32 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <p className="mt-3 text-xs text-slate-400">No digest generated yet. Click generate to create today’s summary.</p>
+          )}
+        </section>
+
+        <section className="mt-8 rounded-xl border border-slate-700 bg-[#1E293B] p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-cyan-300">Digest run history</h2>
+          {digestRunHistory.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-400">No digest run history yet.</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-slate-700/70 rounded-lg border border-slate-700 bg-slate-900/40">
+              {digestRunHistory.map((run) => (
+                <li key={run.id} className="flex flex-col gap-1 px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-slate-100">{formatAuditAction(run.actionType)}</p>
+                    <p className="text-slate-400">
+                      {run.createdAt.toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  </div>
+                  <div className="text-slate-300">
+                    Open {run.openCount ?? "--"} · Overdue {run.overdueCount ?? "--"} · Critical {run.criticalCount ?? "--"}
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
 
