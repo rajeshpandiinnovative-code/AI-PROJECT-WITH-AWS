@@ -76,6 +76,15 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const nowIsoDate = now.toISOString().slice(0, 10);
+  const fromIsoDate = thirtyDaysAgo.toISOString().slice(0, 10);
+  const trackerExportAllHref = "/api/interventions/export?type=tracker";
+  const trackerExport30dHref = `/api/interventions/export?type=tracker&from=${fromIsoDate}&to=${nowIsoDate}`;
+  const auditExportAllHref = "/api/interventions/export?type=audit";
+  const auditExport30dHref = `/api/interventions/export?type=audit&from=${fromIsoDate}&to=${nowIsoDate}`;
+
   const [studentStat] = await db
     .select({ n: count() })
     .from(students)
@@ -476,12 +485,18 @@ export default async function DashboardPage() {
 
         <section className="mt-12">
           <h2 className="text-lg font-semibold text-white">Intervention tracker</h2>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-3">
             <a
-              href="/api/interventions/export?type=tracker"
+              href={trackerExportAllHref}
               className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
             >
-              Download tracker CSV
+              Download tracker CSV (all)
+            </a>
+            <a
+              href={trackerExport30dHref}
+              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+            >
+              Download tracker CSV (last 30d)
             </a>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -573,12 +588,18 @@ export default async function DashboardPage() {
 
         <section className="mt-12">
           <h2 className="text-lg font-semibold text-white">Intervention audit trail</h2>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-3">
             <a
-              href="/api/interventions/export?type=audit"
+              href={auditExportAllHref}
               className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
             >
-              Download audit CSV
+              Download audit CSV (all)
+            </a>
+            <a
+              href={auditExport30dHref}
+              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+            >
+              Download audit CSV (last 30d)
             </a>
           </div>
           {recentAuditLogs.length === 0 ? (

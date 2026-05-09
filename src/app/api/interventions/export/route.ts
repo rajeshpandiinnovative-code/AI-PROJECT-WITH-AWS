@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
@@ -27,10 +27,28 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
+    const fromParam = searchParams.get("from");
+    const toParam = searchParams.get("to");
+
+    const fromDate = fromParam ? new Date(fromParam) : null;
+    const toDate = toParam ? new Date(toParam) : null;
+    if (fromDate && Number.isNaN(fromDate.getTime())) {
+      return NextResponse.json({ error: "Invalid from date" }, { status: 400 });
+    }
+    if (toDate && Number.isNaN(toDate.getTime())) {
+      return NextResponse.json({ error: "Invalid to date" }, { status: 400 });
+    }
+    if (fromDate && toDate && fromDate > toDate) {
+      return NextResponse.json({ error: "from must be <= to" }, { status: 400 });
+    }
 
     if (type === "tracker") {
       const tasks = await db.query.interventionTasks.findMany({
-        where: eq(interventionTasks.schoolId, schoolId),
+        where: and(
+          eq(interventionTasks.schoolId, schoolId),
+          fromDate ? gte(interventionTasks.createdAt, fromDate) : undefined,
+          toDate ? lte(interventionTasks.createdAt, toDate) : undefined,
+        ),
         orderBy: [desc(interventionTasks.createdAt)],
         limit: 1000,
       });
@@ -61,7 +79,11 @@ export async function GET(request: Request) {
 
     if (type === "audit") {
       const logs = await db.query.interventionAuditLogs.findMany({
-        where: eq(interventionAuditLogs.schoolId, schoolId),
+        where: and(
+          eq(interventionAuditLogs.schoolId, schoolId),
+          fromDate ? gte(interventionAuditLogs.createdAt, fromDate) : undefined,
+          toDate ? lte(interventionAuditLogs.createdAt, toDate) : undefined,
+        ),
         orderBy: [desc(interventionAuditLogs.createdAt)],
         limit: 1000,
       });
