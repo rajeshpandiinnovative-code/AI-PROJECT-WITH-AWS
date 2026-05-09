@@ -1094,6 +1094,158 @@ function buildChallengeSet(moduleSlug: string, moduleTitle: string): ChallengeQu
   ];
 }
 
+type GeneratedQuizItem = {
+  question: string;
+  options: string[];
+  answer: string;
+  explanation: string;
+};
+
+function QuizGeneratorWorkbench() {
+  const [grade, setGrade] = useState("Class 8");
+  const [subject, setSubject] = useState("Maths");
+  const [topic, setTopic] = useState("Fractions");
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [questionCount, setQuestionCount] = useState(5);
+  const [quiz, setQuiz] = useState<GeneratedQuizItem[]>([]);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [score, setScore] = useState<number | null>(null);
+  const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void fetchHistory("ai-quiz-generator").then(setHistory);
+  }, []);
+
+  const generateQuiz = async () => {
+    setLoading(true);
+    setScore(null);
+    try {
+      const response = await fetch("/api/modules/quiz-generator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grade, subject, topic, difficulty, questionCount }),
+      });
+      const payload = (await response.json()) as { data?: { quiz?: GeneratedQuizItem[] } };
+      const items = payload.data?.quiz ?? [];
+      setQuiz(items);
+      setAnswers({});
+      await saveHistory("ai-quiz-generator", "AI Quiz Generator", { grade, subject, topic, difficulty }, { generated: items.length });
+      setHistory(await fetchHistory("ai-quiz-generator"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitQuiz = () => {
+    const correct = quiz.filter((q, idx) => answers[idx] === q.answer).length;
+    setScore(correct);
+    void saveHistory(
+      "ai-quiz-generator",
+      "AI Quiz Generator",
+      { attempted: quiz.length, answers },
+      { score: `${correct}/${quiz.length}` },
+    ).then(async () => setHistory(await fetchHistory("ai-quiz-generator")));
+  };
+
+  return (
+    <section className="mt-8 rounded-xl border border-slate-700 bg-slate-950 p-4">
+      <h2 className="text-lg font-semibold text-emerald-300">AI Quiz Generator Pro</h2>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <input value={grade} onChange={(e) => setGrade(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" />
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" />
+        <input value={topic} onChange={(e) => setTopic(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 sm:col-span-2" />
+        <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as "easy" | "medium" | "hard")} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100">
+          <option value="easy">easy</option>
+          <option value="medium">medium</option>
+          <option value="hard">hard</option>
+        </select>
+        <input type="number" min={3} max={10} value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" />
+      </div>
+      <button onClick={() => void generateQuiz()} className="mt-3 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">
+        {loading ? "Generating..." : "Generate Quiz"}
+      </button>
+
+      {quiz.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {quiz.map((q, idx) => (
+            <div key={`${q.question}-${idx}`} className="rounded-lg border border-slate-700 bg-slate-900 p-3">
+              <p className="text-sm font-semibold text-slate-100">{idx + 1}. {q.question}</p>
+              <div className="mt-2 space-y-1">
+                {q.options.map((opt) => (
+                  <label key={opt} className="flex items-center gap-2 text-xs text-slate-300">
+                    <input type="radio" name={`quiz-${idx}`} value={opt} checked={answers[idx] === opt} onChange={(e) => setAnswers((p) => ({ ...p, [idx]: e.target.value }))} />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+              {score !== null ? <p className="mt-2 text-xs text-emerald-300">Answer: {q.answer} | {q.explanation}</p> : null}
+            </div>
+          ))}
+          <button onClick={submitQuiz} className="rounded-lg border border-cyan-400 px-4 py-2 text-sm font-semibold text-cyan-300">Submit Quiz</button>
+          {score !== null ? <p className="text-sm text-emerald-300">Score: {score}/{quiz.length}</p> : null}
+        </div>
+      ) : null}
+      <HistoryPanel title="Recent Quiz Activity" rows={history} />
+    </section>
+  );
+}
+
+function NotesGeneratorWorkbench() {
+  const [grade, setGrade] = useState("Class 8");
+  const [subject, setSubject] = useState("Science");
+  const [topic, setTopic] = useState("Photosynthesis");
+  const [style, setStyle] = useState<"exam" | "quick-revision" | "conceptual">("quick-revision");
+  const [notes, setNotes] = useState("");
+  const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    void fetchHistory("ai-notes-generator").then(setHistory);
+  }, []);
+
+  const generateNotes = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/modules/notes-generator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grade, subject, topic, style }),
+      });
+      const payload = (await response.json()) as { notes?: string };
+      const text = payload.notes ?? "Unable to generate notes.";
+      setNotes(text);
+      await saveHistory("ai-notes-generator", "AI Notes Generator", { grade, subject, topic, style }, { generated: Boolean(payload.notes) });
+      setHistory(await fetchHistory("ai-notes-generator"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className="mt-8 rounded-xl border border-slate-700 bg-slate-950 p-4">
+      <h2 className="text-lg font-semibold text-emerald-300">AI Notes Generator Pro</h2>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <input value={grade} onChange={(e) => setGrade(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" />
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" />
+        <input value={topic} onChange={(e) => setTopic(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 sm:col-span-2" />
+        <select value={style} onChange={(e) => setStyle(e.target.value as "exam" | "quick-revision" | "conceptual")} className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 sm:col-span-2">
+          <option value="exam">exam</option>
+          <option value="quick-revision">quick-revision</option>
+          <option value="conceptual">conceptual</option>
+        </select>
+      </div>
+      <button onClick={() => void generateNotes()} className="mt-3 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950">
+        {loading ? "Generating..." : "Generate Notes"}
+      </button>
+      {notes ? (
+        <textarea readOnly value={notes} className="mt-4 h-64 w-full rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-200" />
+      ) : null}
+      <HistoryPanel title="Recent Notes Activity" rows={history} />
+    </section>
+  );
+}
+
 function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: string; moduleTitle: string }) {
   const blueprint = MODULE_BLUEPRINTS[moduleSlug] ?? {
     focus: `${moduleTitle} practical mastery`,
@@ -1237,5 +1389,7 @@ export function TopModuleWorkbench({ moduleSlug, moduleTitle }: TopModuleWorkben
   if (moduleSlug === "ai-study-planner") return <StudyPlannerWorkbench />;
   if (moduleSlug === "homework-helper") return <HomeworkHelperWorkbench />;
   if (moduleSlug === "vedic-maths") return <VedicMathsWorkbench />;
+  if (moduleSlug === "ai-quiz-generator") return <QuizGeneratorWorkbench />;
+  if (moduleSlug === "ai-notes-generator") return <NotesGeneratorWorkbench />;
   return <UniversalModuleWorkbench moduleSlug={moduleSlug} moduleTitle={moduleTitle} />;
 }
