@@ -3,8 +3,25 @@
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-
 import { DemoContextSelectors } from "@/src/components/login/DemoContextSelectors";
+
+const UUID_HEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function schoolIdFormatHint(trimmed: string): string | null {
+  if (!trimmed) {
+    return "Enter your School ID.";
+  }
+  if (UUID_HEX.test(trimmed)) {
+    return null;
+  }
+  const parts = trimmed.split("-").filter((p) => p.length > 0);
+  const looksLikeMissingFirstSegment =
+    parts.length === 4 && parts[0].length <= 4 && /^[0-9a-f]{12}$/i.test(parts[3] ?? "");
+  if (looksLikeMissingFirstSegment) {
+    return "That value is missing the first block of the UUID (eight hex characters before the first hyphen). Paste the complete School ID—for example it must look like xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx, not starting with a short group such as 0000-.";
+  }
+  return "School ID must be a full UUID in the form xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 characters including hyphens).";
+}
 
 type Props = {
   registered?: boolean;
@@ -53,13 +70,21 @@ export function LoginForm({ registered }: Props) {
     setBusy(true);
     setError(null);
     const trimmed = schoolId.trim();
+    const formatErr = schoolIdFormatHint(trimmed);
+    if (formatErr) {
+      setError(formatErr);
+      setBusy(false);
+      return;
+    }
     try {
       const res = await signIn("credentials", {
         schoolId: trimmed,
         redirect: false,
       });
       if (res?.error) {
-        setError("School ID was not found or is not a valid UUID.");
+        setError(
+          "No school tenant matches this School ID. Claim your school on onboarding, confirm the UUID from your admin, or use the full seeded QA id from README.",
+        );
         void fetch("/api/analytics/event", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -135,7 +160,10 @@ export function LoginForm({ registered }: Props) {
 
         <section className="mt-10 border-t border-slate-800 pt-8">
           <h2 className="text-sm font-semibold text-slate-200">School ID (tenant)</h2>
-          <p className="mt-1 text-xs text-slate-500">UUID from onboarding after you claim your school.</p>
+          <p className="mt-1 text-xs text-slate-500">
+            UUID from onboarding after you claim your school. Paste the full value (e.g. eight hex chars, hyphen, four,
+            four, four, twelve)—all segments are required.
+          </p>
           <form onSubmit={(e) => void submitSchool(e)} className="mt-3 space-y-3">
             <div>
               <label htmlFor="schoolId" className="block text-xs text-slate-500">

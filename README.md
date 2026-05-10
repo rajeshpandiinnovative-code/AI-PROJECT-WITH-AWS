@@ -22,6 +22,36 @@ npm run db:migrate
 npm run dev
 ```
 
+Once **`npm run db:migrate`** succeeds, typical **next moves**:
+
+```bash
+npm run seed:verify-school    # optional: inserts demo tenant; School ID in README section “Verify School ID login”
+npm run dev
+```
+
+Then open the app (default [http://localhost:3000](http://localhost:3000)), sign in at `/login` with email/password or the seeded School UUID, load UDISE directory data with **`npm run import:schools`** when you have a CSV, and run **`npm run verify`** before commits.
+
+If npm reports **Missing script: "db:migrate"**, your shell is not in this repo’s root (where `package.json` lives). From WSL use `cd /mnt/c/Users/<you>/Desktop/ai-academy-pro` (adjust path), then run again.
+
+#### Migration error: `uuid` vs `integer` on `schools.id`
+
+That means the database still has a **legacy** `schools` table (integer PK) while this app expects **UUID** `schools.id` (see `drizzle/0000_*.sql`). Foreign keys like `platform_users.school_id` cannot attach.
+
+**Disposable dev database** (deletes **all** app data and migration history, then you re-run migrations):
+
+```bash
+ALLOW_DROP_PUBLIC_SCHEMA=1 npm run db:reset:dev
+npm run db:migrate
+```
+
+**Production or any DB with data you need:** do not run the reset. You need a planned migration from integer IDs to UUIDs (or restore from a backup that matches this repo’s schema).
+
+You can also migrate **without** relying on cwd by running from anywhere:
+
+```bash
+node /full/path/to/ai-academy-pro/migrate.mjs
+```
+
 Open [http://localhost:3000](http://localhost:3000).
 
 ### Verify School ID login (fixed UUID)
@@ -83,8 +113,11 @@ After pulling schema changes, run **`npm run db:migrate`** (includes default `di
 | Command | Meaning |
 |---------|---------|
 | `npm run dev` | Development server |
+| `npm run migrate` | Same as `db:migrate` (shorter alias) |
+| `ALLOW_DROP_PUBLIC_SCHEMA=1 npm run db:reset:dev` | Dev-only: wipe `public` + `drizzle` schemas then re-migrate (see troubleshooting below) |
 | `npm run verify` | `check:env` + ESLint + TypeScript |
 | `npm run verify:ci` | ESLint + TypeScript (no `.env.local` required; CI-friendly) |
+| `npm run qa` | Same as `verify:ci`, then prints suggested next commands |
 | `npm run lint` | ESLint |
 | `npm run build` | Production build |
 | `npm run smoke` | Full verification + module banks + build |
@@ -120,9 +153,21 @@ After DB is migrated and users/schools exist:
 
 When `REQUIRE_PAID_SUBSCRIPTION=true`, missing subscription redirects to `/pricing?reason=subscription` from `/dashboard`.
 
+## Cloud deploy (Vercel)
+
+1. **Postgres:** Create a free project on [Neon](https://neon.tech) or [Supabase](https://supabase.com), copy `DATABASE_URL` (often append `?sslmode=require`).
+2. **Migrate once from your machine:** `set DATABASE_URL=… && npm run db:migrate` (optional: `npm run seed:verify-school`).
+3. **Host:** [Vercel](https://vercel.com) → **Add New Project** → import this GitHub repo. Vercel runs `npm run build`; no extra config required (`vercel.json` pins region **Mumbai `bom1`**).
+4. **Environment variables** in the Vercel project (same names as `.env.example`): at minimum `DATABASE_URL`, `AUTH_SECRET`, `GEMINI_API_KEY`, `GOOGLE_CLOUD_VISION_API_KEY`, `MARKING_RUBRIC`, and set **`NEXT_PUBLIC_APP_URL`** + **`AUTH_URL`** to your production URL (`https://<project>.vercel.app`).
+5. Redeploy after changing env vars.
+
+CLI (logged in with `npx vercel login`): `npm run deploy:vercel`. Optional GitHub Action: **Actions → Vercel Production (manual)** after adding secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` from `vercel link`.
+
 ## Docs
 
 - Operations notes: `docs/operations/README.md`
+- **Staging / launch rehearsal:** `docs/operations/launch-rehearsal-checklist.md`
+- **CI:** GitHub Actions runs **`verify:ci`** + **`npm run build`** on push/PR (`.github/workflows/ci.yml`); Playwright smoke optional (`.github/workflows/playwright.yml`).
 
 ## Learn More
 

@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    env:
+      AUTH_SECRET: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01"
+      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/ci"
+      GEMINI_API_KEY: "ci-placeholder-gemini-key-not-used-at-build"
+      GOOGLE_CLOUD_VISION_API_KEY: "ci-placeholder-vision-not-used-at-build"
+      MARKING_RUBRIC: "Placeholder marking rubric text for CI production build only."
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      AUTH_URL: "http://localhost:3000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint and TypeScript
+        run: npm run verify:ci
+
+      - name: Production build
+        run: npm run build

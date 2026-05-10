@@ -13,19 +13,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
-// Prefer .env.local over any inherited process env (e.g. dummy DATABASE_URL from CI shells).
-config({ path: ".env.local", override: true });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(__dirname, "..");
+
+// Prefer .env.local at repo root (works even when npm/node is run from another cwd).
+config({ path: path.join(REPO_ROOT, ".env.local"), override: true });
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
-  console.error("DATABASE_URL is missing (.env.local).");
+  console.error(`DATABASE_URL is missing. Add it to ${path.join(REPO_ROOT, ".env.local")}.`);
   process.exit(1);
 }
 
 const useAwsRds = connectionString.includes("rds.amazonaws.com");
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const migrationsFolder = path.join(__dirname, "..", "drizzle");
+const migrationsFolder = path.join(REPO_ROOT, "drizzle");
 
 const sql = postgres(connectionString, {
   max: 1,
@@ -125,6 +127,8 @@ async function baselineIfLegacyDb() {
 }
 
 try {
+  console.log("Starting migration runner…");
+  console.log("Connecting to database (first query may take a few seconds)…");
   await baselineIfLegacyDb();
   console.log("Applying migrations from:", migrationsFolder);
   await migrate(db, { migrationsFolder });
