@@ -43,6 +43,8 @@ export async function recordDemoLead(opts: {
   path?: string;
   ip?: string;
   userAgent?: string;
+  /** State / UT for nationwide rollout segmentation (analytics only). */
+  regionUt?: string;
 }): Promise<void> {
   await db.insert(demoLeads).values({
     name: opts.name.trim(),
@@ -56,6 +58,7 @@ export async function recordDemoLead(opts: {
       name: opts.name.trim(),
       mobile: opts.mobile.trim(),
       path: opts.path,
+      regionUt: opts.regionUt?.trim() || undefined,
     },
     ip: opts.ip,
     userAgent: opts.userAgent,

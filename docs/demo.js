@@ -71,7 +71,7 @@ form.addEventListener('submit', async event => {
       window.location.href = `dashboard.html?role=${encodeURIComponent(role)}&board=${encodeURIComponent(board)}`;
     }, 1000);
 
-  } catch (error) {
+  } catch {
     statusBox.textContent = 'Unable to connect to the demo signup service. Please check your internet connection.';
     statusBox.className = 'status-box error';
   }

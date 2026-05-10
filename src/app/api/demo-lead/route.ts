@@ -10,6 +10,7 @@ const bodySchema = z.object({
   mobile: z.string().min(8).max(32),
   path: z.string().max(512).optional(),
   referrer: z.string().max(2048).optional(),
+  regionUt: z.string().max(120).optional(),
 });
 
 export async function POST(request: Request) {
@@ -20,13 +21,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name and valid mobile are required." }, { status: 400 });
     }
 
-    const { name, mobile, path, referrer } = parsed.data;
+    const { name, mobile, path, referrer, regionUt } = parsed.data;
 
     await recordDemoLead({
       name,
       mobile,
       path,
       referrer,
+      regionUt,
       ip: clientIp(request),
       userAgent: request.headers.get("user-agent") ?? undefined,
     });

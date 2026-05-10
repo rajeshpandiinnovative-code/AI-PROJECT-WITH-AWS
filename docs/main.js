@@ -8,7 +8,7 @@ statusButton.addEventListener('click', async () => {
     const response = await fetch('/api/status');
     const data = await response.json();
     apiStatus.textContent = JSON.stringify(data, null, 2);
-  } catch (error) {
+  } catch {
     apiStatus.textContent = 'Failed to reach API. Is the backend running?';
   }
 });

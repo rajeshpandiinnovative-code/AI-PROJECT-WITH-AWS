@@ -1,7 +1,9 @@
+import { count } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
-import { pingDatabase } from "@/src/lib/db";
+import { globalSchools } from "@/src/db/schema";
+import { db, pingDatabase } from "@/src/lib/db";
 import { cleanEnv } from "@/src/lib/env";
 
 function formatDbError(error: unknown): string {
@@ -40,6 +42,11 @@ export async function GET() {
       ok: false,
       cronTokenConfigured: false,
     },
+    directory: {
+      ok: false,
+      globalSchoolsCount: 0,
+      error: null as string | null,
+    },
   };
 
   const session = await auth();
@@ -60,6 +67,17 @@ export async function GET() {
   } catch (error) {
     checks.database.ok = false;
     checks.database.error = formatDbError(error);
+  }
+
+  if (checks.database.ok) {
+    try {
+      const [row] = await db.select({ c: count() }).from(globalSchools);
+      checks.directory.ok = true;
+      checks.directory.globalSchoolsCount = Number(row?.c ?? 0);
+    } catch (error) {
+      checks.directory.ok = false;
+      checks.directory.error = formatDbError(error);
+    }
   }
 
   // Deploy / infra readiness (DB + keys). Auth is separate — tenant sign-in is optional for probes.

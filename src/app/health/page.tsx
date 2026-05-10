@@ -15,6 +15,7 @@ type HealthPayload = {
     gemini: { ok: boolean };
     rubric: { ok: boolean };
     digestAutomation: { ok: boolean; cronTokenConfigured: boolean };
+    directory: { ok: boolean; globalSchoolsCount: number; error: string | null };
   };
 };
 
@@ -97,7 +98,8 @@ export default function HealthPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-10">
       <h1 className="text-2xl font-semibold">Deploy Health Check</h1>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Verifies database connectivity, Vision, Gemini, rubric, and optional tenant session. Top-level{" "}
+        Verifies database connectivity, national directory row count (<code className="text-xs">global_schools</code>),
+        Vision, Gemini, rubric, and optional tenant session. Top-level{" "}
         <code className="text-xs">ok</code> means infrastructure is ready; <code className="text-xs">launchReady</code>{" "}
         is true when you are signed in with a school tenant (<code className="text-xs">schoolId</code> on the JWT).
       </p>

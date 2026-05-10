@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 
+import { FormFrame } from "@/src/components/ui/FormFrame";
+import { INDIAN_STATES } from "@/src/lib/india-demo-locations";
+
 export function DemoLeadCapture() {
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
+  const [regionUt, setRegionUt] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -19,6 +23,7 @@ export function DemoLeadCapture() {
         body: JSON.stringify({
           name: name.trim(),
           mobile: mobile.trim(),
+          regionUt: regionUt.trim() || undefined,
           path: typeof window !== "undefined" ? window.location.pathname : "/",
           referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
         }),
@@ -32,6 +37,7 @@ export function DemoLeadCapture() {
       setMessage("Thanks — we will contact you shortly.");
       setName("");
       setMobile("");
+      setRegionUt("");
     } catch {
       setMessage("Something went wrong. Try again.");
     } finally {
@@ -40,53 +46,64 @@ export function DemoLeadCapture() {
   };
 
   return (
-    <div className="mt-10 max-w-xl rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-5 ring-1 ring-cyan-500/20">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Book a demo</p>
-      <h2 className="mt-2 text-lg font-semibold text-white">Leave your name and mobile</h2>
-      <p className="mt-1 text-sm text-slate-400">
-        We use this for India-wide launch onboarding and board-wise rollouts.
-      </p>
-      <form onSubmit={(e) => void submit(e)} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <label htmlFor="demo-name" className="sr-only">
-            Name
-          </label>
+    <FormFrame
+      eyebrow="Book a demo"
+      title="Nationwide rollout — leave your details"
+      description="Pick your State / UT, then share name and mobile. We route demos by region for India-wide onboarding."
+      className="mt-10 max-w-xl border-cyan-500/30 bg-slate-950/80 ring-1 ring-cyan-500/20"
+    >
+      <form onSubmit={(e) => void submit(e)} className="space-y-4">
+        <label className="block text-sm font-medium text-slate-300">
+          State / Union Territory
+          <select
+            required
+            value={regionUt}
+            onChange={(e) => setRegionUt(e.target.value)}
+            className="mt-2 min-h-[48px] w-full rounded-xl border border-slate-600 bg-slate-900 px-4 py-3 text-base text-white focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+          >
+            <option value="">Choose…</option>
+            {INDIAN_STATES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block text-sm font-medium text-slate-300">
+          Full name
           <input
-            id="demo-name"
             type="text"
             required
             autoComplete="name"
-            placeholder="Full name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+            className="mt-2 min-h-[48px] w-full rounded-xl border border-slate-600 bg-slate-900 px-4 py-3 text-base text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
           />
-        </div>
-        <div className="flex-1">
-          <label htmlFor="demo-mobile" className="sr-only">
-            Mobile
-          </label>
+        </label>
+
+        <label className="block text-sm font-medium text-slate-300">
+          Mobile number
           <input
-            id="demo-mobile"
             type="tel"
             required
             inputMode="tel"
             autoComplete="tel"
-            placeholder="Mobile number"
             value={mobile}
             onChange={(e) => setMobile(e.target.value)}
-            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+            className="mt-2 min-h-[48px] w-full rounded-xl border border-slate-600 bg-slate-900 px-4 py-3 text-base text-white placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
           />
-        </div>
+        </label>
+
         <button
           type="submit"
           disabled={busy}
-          className="rounded-lg bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-60 sm:shrink-0"
+          className="min-h-[48px] w-full rounded-xl bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
         >
           {busy ? "Sending…" : "Request demo"}
         </button>
       </form>
-      {message ? <p className="mt-3 text-sm text-emerald-400">{message}</p> : null}
-    </div>
+      {message ? <p className="mt-4 text-sm text-emerald-400">{message}</p> : null}
+    </FormFrame>
   );
 }
