@@ -1,320 +1,104 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import type { Variants } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
-import {
-  BadgeCheck,
-  Brain,
-  Calculator,
-  ChartLine,
-  Clock3,
-  Code2,
-  GraduationCap,
-  Hand,
-  Languages,
-  LayoutDashboard,
-  Medal,
-  MessageSquareText,
-  Mic,
-  MonitorSmartphone,
-  NotebookPen,
-  ScanSearch,
-  Sparkles,
-  Speech,
-  Swords,
-  Trophy,
-  UserCircle2,
-  Wallet,
-} from "lucide-react";
-import { DemoLeadCapture } from "@/src/components/DemoLeadCapture";
-import { modulePillars, type LearningModule, type ModulePillar } from "@/src/lib/modules";
-
-const CONTACT_NUMBER = "9535761292";
-const CONTACT_WHATSAPP = "https://wa.me/919535761292?text=Hello%20AI%20Academy%20Pro%20team,%20I%20want%20to%20start%20the%20national%20launch.";
-
-const roleNav = [
-  { label: "Students", href: "#students" },
-  { label: "Parents", href: "#parents" },
-  { label: "Schools", href: "#schools" },
-];
-
-const iconMap: Record<string, LucideIcon> = {
-  calculator: Calculator,
-  swords: Swords,
-  brain: Brain,
-  hand: Hand,
-  "graduation-cap": GraduationCap,
-  languages: Languages,
-  "chart-line": ChartLine,
-  "scan-search": ScanSearch,
-  "layout-dashboard": LayoutDashboard,
-  "message-square-text": MessageSquareText,
-  mic: Mic,
-  "notebook-pen": NotebookPen,
-  sparkles: Sparkles,
-  speech: Speech,
-  code2: Code2,
-  "monitor-smartphone": MonitorSmartphone,
-  wallet: Wallet,
-  "badge-check": BadgeCheck,
-  clock3: Clock3,
-};
-
-function iconForModule(module: LearningModule): LucideIcon {
-  return iconMap[module.iconKey] ?? Sparkles;
-}
-
-const containerMotion: Variants = {
-  hidden: { opacity: 0, y: 28 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.6,
-      staggerChildren: 0.08,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-const itemMotion: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-};
+import { ArrowRight, Sparkles } from "lucide-react";
+import { HandshakeHeroArt } from "@/src/components/landing/HandshakeHeroArt";
+import { PublicSiteHeader } from "@/src/components/landing/PublicSiteHeader";
+import { WorkflowSlider } from "@/src/components/landing/WorkflowSlider";
+import { modulePillars } from "@/src/lib/modules";
 
 export default function Home() {
   return (
-    <main className="min-h-screen scroll-smooth bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <a href="#top" className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300">
-            <Sparkles className="size-4" />
-            AI Academy Pro
-          </a>
-          <nav className="flex items-center gap-2 sm:gap-3">
-            {roleNav.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-400 hover:text-cyan-300"
+    <main className="relative flex min-h-screen flex-col overflow-hidden bg-slate-950 text-slate-100">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_-15%,rgba(16,185,129,0.14),transparent_52%),radial-gradient(ellipse_50%_45%_at_100%_10%,rgba(34,211,238,0.09),transparent_50%),radial-gradient(ellipse_45%_40%_at_0%_30%,rgba(99,102,241,0.06),transparent_45%)]"
+        aria-hidden
+      />
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <PublicSiteHeader />
+
+        <section className="flex flex-col px-4 pb-6 pt-8 sm:pb-10 sm:pt-12 lg:pt-16">
+          <div className="mx-auto grid w-full max-w-6xl flex-1 items-center gap-10 lg:grid-cols-2 lg:gap-16 lg:py-4">
+            <div className="relative flex justify-center lg:justify-end">
+              <div
+                className="pointer-events-none absolute inset-0 -z-10 blur-3xl sm:scale-110"
+                aria-hidden
               >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        </div>
-      </header>
-
-      <section id="top" className="border-b border-slate-800">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <motion.div
-            variants={containerMotion}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.25 }}
-            className="max-w-4xl"
-          >
-            <motion.p variants={itemMotion} className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-300">
-              High Velocity Learning Ecosystem
-            </motion.p>
-            <motion.h1 variants={itemMotion} className="mt-4 text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl">
-              Single-Page AI Academy Pro Experience for Students, Parents, and Schools.
-            </motion.h1>
-            <motion.p variants={itemMotion} className="mt-6 max-w-3xl text-base text-slate-300 sm:text-lg">
-              Acknowledge and forge the AI Academy Pro ecosystem now. Launch a modular growth engine that combines academic outcomes, AI-driven engagement, life skills, and wellness in one scroll-ready experience.
-            </motion.p>
-            <motion.div variants={itemMotion} className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="#pillars"
-                className="rounded-lg bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-              >
-                Explore Modules
-              </a>
-              <Link
-                href="/visualizations"
-                className="rounded-lg border border-cyan-400/60 px-5 py-3 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/10"
-              >
-                Insight charts
-              </Link>
-              <Link
-                href="/onboarding"
-                className="rounded-lg border border-emerald-400 px-5 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/10"
-              >
-                Start School Onboarding
-              </Link>
-            </motion.div>
-            <motion.div variants={itemMotion}>
-              <DemoLeadCapture />
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      <section id="pillars" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <motion.div
-          variants={containerMotion}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.1 }}
-        >
-          <motion.h2 variants={itemMotion} className="text-3xl font-bold text-white sm:text-4xl">
-            Section 1: The Core Pillars
-          </motion.h2>
-          <motion.p variants={itemMotion} className="mt-3 max-w-3xl text-slate-300">
-            Four focused pillars, each delivered in a responsive 3-column module grid that stacks to one column on mobile.
-          </motion.p>
-        </motion.div>
-
-        <div className="mt-10 space-y-8">
-          {modulePillars.map((pillar: ModulePillar) => (
-            <motion.article
-              key={pillar.id}
-              id={pillar.id}
-              variants={containerMotion}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, amount: 0.2 }}
-              className={`rounded-2xl border border-slate-800 bg-gradient-to-br ${pillar.accentClass} p-6 ring-1 ${pillar.ringClass}`}
-            >
-              <motion.h3 variants={itemMotion} className="text-2xl font-semibold text-white">
-                {pillar.title}
-              </motion.h3>
-              <motion.p variants={itemMotion} className="mt-2 text-slate-300">
-                {pillar.subtitle}
-              </motion.p>
-
-              <motion.div variants={containerMotion} className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {pillar.modules.map((module) => {
-                  const Icon = iconForModule(module);
-
-                  return (
-                    <motion.div
-                      variants={itemMotion}
-                      key={module.title}
-                      className="rounded-xl border border-slate-700/70 bg-slate-900/75 p-4"
-                    >
-                      <Icon className="size-6 text-cyan-300" aria-hidden />
-                      <h4 className="mt-3 text-base font-semibold text-white">{module.title}</h4>
-                      <p className="mt-1 text-sm text-slate-300">{module.description}</p>
-                      <p className="mt-2 text-xs text-emerald-300">{module.outcome}</p>
-                      <Link
-                        href={`/modules/${module.slug}`}
-                        className="mt-3 inline-flex text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-                      >
-                        Open module
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            </motion.article>
-          ))}
-        </div>
-      </section>
-
-      <section id="students" className="border-y border-slate-800 bg-slate-900/60">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <motion.div
-            variants={containerMotion}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.2 }}
-            className="grid gap-8 lg:grid-cols-2"
-          >
-            <motion.div variants={itemMotion}>
-              <h2 className="text-3xl font-bold text-white sm:text-4xl">Section 2: The Engagement Engine</h2>
-              <p className="mt-3 text-slate-300">
-                A viral dashboard layer designed to keep students active, motivate parents, and give schools measurable participation signals.
-              </p>
-            </motion.div>
-            <motion.div variants={itemMotion} className="rounded-xl border border-emerald-400/40 bg-slate-950/80 p-5">
-              <p className="text-sm font-semibold text-emerald-300">Dashboard Preview</p>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-900 p-3">
-                  <div className="inline-flex items-center gap-2 text-sm text-slate-200">
-                    <Trophy className="size-4 text-cyan-300" /> XP / Points System
-                  </div>
-                  <span className="text-xs font-medium text-emerald-300">Live Leaderboards</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-900 p-3">
-                  <div className="inline-flex items-center gap-2 text-sm text-slate-200">
-                    <Medal className="size-4 text-cyan-300" /> Learning Streaks
-                  </div>
-                  <span className="text-xs font-medium text-emerald-300">Achievement Badges</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-900 p-3">
-                  <div className="inline-flex items-center gap-2 text-sm text-slate-200">
-                    <UserCircle2 className="size-4 text-cyan-300" /> AI Avatar Assistant
-                  </div>
-                  <span className="text-xs font-medium text-emerald-300">24x7 Mentor Mode</span>
-                </div>
+                <div className="mx-auto h-48 max-w-md rounded-full bg-emerald-500/15" />
               </div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
+              <HandshakeHeroArt />
+            </div>
 
-      <section id="parents" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <motion.div
-          variants={containerMotion}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.25 }}
-          className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
-        >
-          <motion.h3 variants={itemMotion} className="text-xl font-semibold text-white">
-            Parent Value: Immediate Problem Solving
-          </motion.h3>
-          <motion.p variants={itemMotion} className="mt-2 text-slate-300">
-            The Viral AI Engine groups planner, homework support, voice tutor, and AI content generation into one clear reason for parent sign-up and referrals.
-          </motion.p>
-        </motion.div>
-      </section>
+            <div className="mx-auto flex w-full max-w-xl flex-col text-center lg:mx-0 lg:max-w-none lg:text-left">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300/95">
+                Welcome
+              </p>
+              <h1 className="mt-4 bg-gradient-to-br from-white via-slate-100 to-slate-400 bg-clip-text text-3xl font-bold leading-tight text-transparent sm:text-4xl lg:text-[2.65rem] lg:leading-[1.12]">
+                AI Academy Pro
+              </h1>
+              <p className="mt-5 text-pretty text-sm leading-relaxed text-slate-400 sm:text-base">
+                For paid users, start with <span className="font-medium text-cyan-300">Register</span>, then use{" "}
+                <span className="font-medium text-cyan-300">Login</span> for account access. Demo login is optional for quick preview.
+              </p>
 
-      <footer id="schools" className="border-t border-slate-800 bg-slate-950">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-          <motion.div
-            variants={containerMotion}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.3 }}
-            className="rounded-2xl border border-cyan-500/30 bg-slate-900 p-7"
-          >
-            <motion.h2 variants={itemMotion} className="text-2xl font-bold text-white sm:text-3xl">
-              Section 3: The Contact Hub
-            </motion.h2>
-            <motion.p variants={itemMotion} className="mt-3 max-w-3xl text-slate-300">
-              Nationwide school onboarding is active. TNPSC-focused pathways remain available as part of the broader India
-              launch. Preview insight charts anytime on{" "}
-              <Link href="/visualizations" className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300">
-                /visualizations
+              <div className="mt-8 w-full lg:max-w-xl">
+                <WorkflowSlider />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-slate-800/70 bg-slate-950/40 px-4 py-14 backdrop-blur-sm sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-6xl">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between sm:gap-8">
+              <div className="text-center sm:text-left">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-300/95">Catalog</p>
+                <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">All learning modules</h2>
+                <p className="mt-3 max-w-2xl text-pretty text-sm leading-relaxed text-slate-400 sm:text-base">
+                  Full product catalog below—open any card to explore. Prefer a dedicated hub view? Use modules.
+                </p>
+              </div>
+              <Link
+                href="/modules"
+                className="inline-flex shrink-0 items-center justify-center gap-2 self-center rounded-xl border border-slate-600 bg-slate-900/80 px-5 py-3 text-sm font-semibold text-cyan-200 transition hover:border-cyan-400/50 hover:bg-slate-800/90 hover:text-white sm:self-auto"
+              >
+                Modules hub
+                <ArrowRight className="size-4" aria-hidden />
               </Link>
-              .
-            </motion.p>
-            <motion.p variants={itemMotion} className="mt-6 text-base font-semibold text-emerald-300">
-              Direct Launch Support: Call/WhatsApp {CONTACT_NUMBER}
-            </motion.p>
-            <motion.div variants={itemMotion} className="mt-5 flex flex-wrap gap-3">
-              <a
-                href={`tel:${CONTACT_NUMBER}`}
-                className="rounded-lg bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-              >
-                Call Launch Team
-              </a>
-              <a
-                href={CONTACT_WHATSAPP}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-emerald-400 px-5 py-3 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/10"
-              >
-                WhatsApp Support
-              </a>
-            </motion.div>
-          </motion.div>
-        </div>
-      </footer>
+            </div>
+
+            <div className="mt-12 space-y-10">
+              {modulePillars.map((pillar) => (
+                <section
+                  key={pillar.id}
+                  className={`rounded-2xl border border-slate-800/90 bg-gradient-to-br ${pillar.accentClass} p-6 shadow-lg shadow-black/20 ring-1 sm:p-7 ${pillar.ringClass}`}
+                >
+                  <h3 className="text-xl font-semibold text-white sm:text-2xl">{pillar.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-base">{pillar.subtitle}</p>
+
+                  <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {pillar.modules.map((mod) => (
+                      <Link
+                        key={mod.slug}
+                        href={`/modules/${mod.slug}`}
+                        className="group rounded-xl border border-slate-700/70 bg-slate-900/80 p-4 transition hover:border-cyan-400/55 hover:bg-slate-900"
+                      >
+                        <div className="inline-flex items-center gap-2 text-cyan-300">
+                          <Sparkles className="size-4 transition group-hover:text-cyan-200" aria-hidden />
+                          <span className="text-xs font-semibold uppercase tracking-[0.18em]">Module</span>
+                        </div>
+                        <p className="mt-3 text-base font-semibold text-white group-hover:text-cyan-50">{mod.title}</p>
+                        <p className="mt-1 text-sm text-slate-300">{mod.description}</p>
+                        <p className="mt-2 text-xs leading-snug text-emerald-300/95">{mod.outcome}</p>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

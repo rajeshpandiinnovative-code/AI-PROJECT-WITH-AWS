@@ -22,4 +22,4 @@ console.log("");
 console.log("Health API (when server is running): GET /api/health");
 console.log("  → includes checks.directory.globalSchoolsCount when DB is up.");
 console.log("");
-console.log("Security: src/middleware.ts adds baseline headers on every matched route.");
+console.log("Security: src/proxy.ts adds baseline headers on every matched route.");

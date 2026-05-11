@@ -21,6 +21,7 @@
     "verify:ci": "npm run lint && node -e \"console.log('Running TypeScript (noEmit)...')\" && npx tsc --noEmit",
     "qa": "npm run verify:ci && node scripts/next-steps.mjs",
     "scan:project": "node scripts/scan-project.mjs",
+    "user:set-role": "node scripts/set-platform-role.mjs",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
     "test:e2e:ui": "playwright test --ui",

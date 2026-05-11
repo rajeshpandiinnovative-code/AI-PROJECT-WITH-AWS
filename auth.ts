@@ -6,9 +6,12 @@ import { eq } from "drizzle-orm";
 import { db } from "@/src/lib/db";
 import { platformUsers, schools } from "@/src/db/schema";
 import { recordAnalyticsEvent } from "@/src/lib/analytics";
+import { founderEmail } from "@/src/lib/rbac";
 import { z } from "zod";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  /** Required for Auth.js on localhost / some hosts when `AUTH_URL` is unset. */
+  trustHost: true,
   session: {
     strategy: "jwt",
   },
@@ -17,72 +20,121 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       name: "Credentials",
       credentials: {
         schoolId: { label: "School ID", type: "text" },
+        phoneNumber: { label: "Phone Number", type: "text" },
+        otp: { label: "OTP", type: "text" },
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
-        const password = typeof credentials?.password === "string" ? credentials.password : "";
+        try {
+          const phoneNumberRaw = typeof credentials?.phoneNumber === "string" ? credentials.phoneNumber : "";
+          const otp = typeof credentials?.otp === "string" ? credentials.otp.trim() : "";
+          const phoneNumber = phoneNumberRaw.replace(/[^\d]/g, "").slice(-10);
+          const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
+          const password = typeof credentials?.password === "string" ? credentials.password : "";
 
-        if (email && password) {
-          const [user] = await db
-            .select()
-            .from(platformUsers)
-            .where(eq(platformUsers.email, email))
-            .limit(1);
+          if (phoneNumber && otp) {
+            const [user] = await db
+              .select()
+              .from(platformUsers)
+              .where(eq(platformUsers.phoneNumber, phoneNumber))
+              .limit(1);
+            if (!user || !user.otpSecret || !user.otpExpires) {
+              return null;
+            }
+            if (user.otpExpires.getTime() < Date.now()) {
+              return null;
+            }
+            const otpOk = await bcrypt.compare(otp, user.otpSecret);
+            if (!otpOk) {
+              return null;
+            }
 
-          if (!user) {
+            await db
+              .update(platformUsers)
+              .set({
+                isVerified: true,
+                otpSecret: null,
+                otpExpires: null,
+                updatedAt: new Date(),
+              })
+              .where(eq(platformUsers.id, user.id));
+
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.displayName || user.email,
+              platformUserId: user.id,
+              role: user.role,
+              schoolId: user.schoolId ?? undefined,
+              board: user.board?.trim() || undefined,
+              authSubject: "platform_user" as const,
+            };
+          }
+
+          if (email && password) {
+            const [user] = await db
+              .select()
+              .from(platformUsers)
+              .where(eq(platformUsers.email, email))
+              .limit(1);
+
+            if (!user) {
+              return null;
+            }
+
+            const ok = await bcrypt.compare(password, user.passwordHash);
+            if (!ok) {
+              return null;
+            }
+
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.displayName || user.email,
+              platformUserId: user.id,
+              role: user.role,
+              schoolId: user.schoolId ?? undefined,
+              board: user.board?.trim() || undefined,
+              authSubject: "platform_user" as const,
+            };
+          }
+
+          const schoolId = credentials?.schoolId;
+          if (!schoolId || typeof schoolId !== "string") {
             return null;
           }
 
-          const ok = await bcrypt.compare(password, user.passwordHash);
-          if (!ok) {
+          const trimmed = schoolId.trim();
+          if (!z.string().uuid().safeParse(trimmed).success) {
+            return null;
+          }
+
+          const [row] = await db
+            .select({ id: schools.id, board: schools.board })
+            .from(schools)
+            .where(eq(schools.id, trimmed))
+            .limit(1);
+
+          if (!row) {
             return null;
           }
 
           return {
-            id: user.id,
-            email: user.email,
-            name: user.displayName || user.email,
-            platformUserId: user.id,
-            role: user.role,
-            schoolId: user.schoolId ?? undefined,
-            board: user.board?.trim() || undefined,
-            authSubject: "platform_user" as const,
+            id: row.id,
+            schoolId: row.id,
+            board: row.board?.trim() || undefined,
+            authSubject: "school" as const,
           };
-        }
-
-        const schoolId = credentials?.schoolId;
-        if (!schoolId || typeof schoolId !== "string") {
+        } catch (err) {
+          console.error("[auth] Credentials authorize failed (check DATABASE_URL and DB reachability):", err);
           return null;
         }
-
-        const trimmed = schoolId.trim();
-        if (!z.string().uuid().safeParse(trimmed).success) {
-          return null;
-        }
-
-        const [row] = await db
-          .select({ id: schools.id, board: schools.board })
-          .from(schools)
-          .where(eq(schools.id, trimmed))
-          .limit(1);
-
-        if (!row) {
-          return null;
-        }
-
-        return {
-          id: row.id,
-          schoolId: row.id,
-          board: row.board?.trim() || undefined,
-          authSubject: "school" as const,
-        };
       },
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         const u = user as import("next-auth").User & { id?: string };
         const isPlatformUser =
@@ -110,6 +162,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.email = undefined;
         }
       }
+
+      /** Keep role / school / board in sync with `platform_users` (e.g. after `set-platform-role` script). */
+      if (token.authSubject === "platform_user") {
+        const platformId =
+          typeof token.platformUserId === "string" && token.platformUserId
+            ? token.platformUserId
+            : typeof token.sub === "string"
+              ? token.sub
+              : undefined;
+        if (platformId) {
+          const [row] = await db
+            .select({
+              role: platformUsers.role,
+              schoolId: platformUsers.schoolId,
+              board: platformUsers.board,
+              email: platformUsers.email,
+            })
+            .from(platformUsers)
+            .where(eq(platformUsers.id, platformId))
+            .limit(1);
+          if (row) {
+            const email = row.email.trim().toLowerCase();
+            const founder = founderEmail();
+            const persistedRole = row.role;
+            token.role =
+              persistedRole === "master_admin" && email !== founder
+                ? "admin"
+                : persistedRole;
+            token.schoolId = row.schoolId ?? undefined;
+            token.board = row.board?.trim() || undefined;
+            token.email = row.email;
+          }
+        }
+      }
+
       return token;
     },
     session({ session, token }) {

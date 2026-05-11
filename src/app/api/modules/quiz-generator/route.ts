@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
-import { cleanEnv, getGeminiModel } from "@/src/lib/env";
+import { logDemoApiUse } from "@/src/lib/demo-access";
+import { cleanEnv } from "@/src/lib/env";
+import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
 import { paidAccessGuardResponse } from "@/src/lib/subscription";
 import { describeGeminiExtractionFailure, extractGeminiGeneratedText } from "@/src/lib/gemini-response";
 
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
-    const model = getGeminiModel();
+    const model = await resolveGeminiModel();
     if (!apiKey) {
       return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
     }
@@ -114,6 +116,13 @@ export async function POST(request: Request) {
       parsedQuiz = buildFallbackQuiz(topic, subject, questionCount);
     }
 
+    await logDemoApiUse("api_quiz_generator", {
+      grade,
+      subject,
+      topic,
+      difficulty,
+      questionCount,
+    });
     return NextResponse.json({ data: parsedQuiz }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to generate quiz";

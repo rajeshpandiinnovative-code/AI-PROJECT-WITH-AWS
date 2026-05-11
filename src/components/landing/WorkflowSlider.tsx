@@ -4,9 +4,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 const SLIDES = [
-  "Find & Claim your school in our national directory.",
-  "Instant OCR processing of handwritten student answer sheets.",
-  "Intelligent grading and analytics delivered in seconds.",
+  "Find & claim your school in our national directory—UDISE-aware, ready for rollout.",
+  "Instant OCR on handwritten answer sheets—Tamil & English classroom handwriting supported.",
+  "Intelligent grading and analytics delivered in seconds—not overnight batch jobs.",
+  "Browse every learning module from one catalog: Vedic maths, quizzes, voice tutor, and more.",
+  "Demo login lets families try the experience with local details—no tenant setup required.",
+  "Role-aware dashboards for teachers, school admins, and parents—same data, clearer views.",
+  "Homework helper, AI notes, and study planners keep momentum between class days.",
+  "Intervention digests highlight who needs help early—before scores become surprises.",
+  "Built for India-wide deployment: secure headers, tenant isolation, and pilot-friendly billing.",
 ];
 
 const WORKFLOW_SLIDE_INTERVAL_MS = 4800;
@@ -55,7 +61,7 @@ export function WorkflowSlider() {
           </div>
         ) : null}
 
-        <div className="relative mt-6 min-h-[100px] sm:min-h-[88px]">
+        <div className="relative mt-6 min-h-[120px] sm:min-h-[108px] md:min-h-[100px]">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={index}

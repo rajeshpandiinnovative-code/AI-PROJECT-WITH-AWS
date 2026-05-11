@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { db } from "@/src/lib/db";
-import { platformUsers, schools } from "@/src/db/schema";
+import { platformUsers, revenueEvents, schools } from "@/src/db/schema";
 import { cleanEnv } from "@/src/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +85,45 @@ export async function POST(request: Request) {
             updatedAt: new Date(),
           })
           .where(eq(schools.id, schoolId));
+      }
+    }
+
+    if (event.type === "invoice.paid") {
+      const inv = event.data.object as Stripe.Invoice;
+      const paid = inv.amount_paid ?? 0;
+      if (paid > 0 && inv.id) {
+        let schoolIdMeta: string | undefined;
+        let userIdMeta: string | undefined;
+        const subRef = inv.subscription;
+        const subId = typeof subRef === "string" ? subRef : subRef?.id;
+        if (subId) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(subId);
+            schoolIdMeta = sub.metadata?.schoolId?.trim() || undefined;
+            userIdMeta = sub.metadata?.userId?.trim() || undefined;
+          } catch {
+            /* ignore */
+          }
+        }
+        const paidAtSec = inv.status_transitions?.paid_at;
+        const occurredAt =
+          typeof paidAtSec === "number" && paidAtSec > 0 ? new Date(paidAtSec * 1000) : new Date();
+        try {
+          await db
+            .insert(revenueEvents)
+            .values({
+              stripeInvoiceId: inv.id,
+              amountMinor: paid,
+              currency: (inv.currency ?? "inr").toUpperCase(),
+              schoolId: schoolIdMeta ?? null,
+              platformUserId: userIdMeta ?? null,
+              occurredAt,
+              metadata: { stripeCustomerId: typeof inv.customer === "string" ? inv.customer : inv.customer?.id },
+            })
+            .onConflictDoNothing({ target: revenueEvents.stripeInvoiceId });
+        } catch (e) {
+          console.error("revenue_events insert failed", e);
+        }
       }
     }
 

@@ -12,9 +12,9 @@ const ROLE_PLANS: { scope: Exclude<CheckoutScope, "school">; title: string }[] =
   { scope: "student", title: "Student" },
   { scope: "parent", title: "Parent" },
   { scope: "teacher", title: "Teacher" },
-  { scope: "admin", title: "School admin" },
+  { scope: "admin", title: "School admin (staff)" },
   { scope: "management", title: "Management" },
-  { scope: "school_org", title: "School / institution (individual)" },
+  { scope: "school_org", title: "Founder / institution (billing owner)" },
 ];
 
 const PRESET_KEYS = new Set<string>(BILLING_BOARD_PRESETS.map((b) => b.key));

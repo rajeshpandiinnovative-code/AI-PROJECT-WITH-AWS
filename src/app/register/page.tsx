@@ -6,11 +6,15 @@ import { useState } from "react";
 
 import { FormFrame } from "@/src/components/ui/FormFrame";
 import { BILLING_BOARD_PRESETS } from "@/src/lib/board-billing";
-import { PLATFORM_ROLE_LABELS, PLATFORM_ROLES, type PlatformRole } from "@/src/lib/platform-roles";
+import {
+  PLATFORM_ROLE_LABELS,
+  SELECTABLE_PLATFORM_ROLES,
+  type PlatformRole,
+} from "@/src/lib/platform-roles";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<PlatformRole>("student");
@@ -27,7 +31,7 @@ export default function RegisterPage() {
     setError(null);
     try {
       const body: Record<string, unknown> = {
-        email: email.trim(),
+        phoneNumber: phoneNumber.trim(),
         password,
         displayName: displayName.trim(),
         role,
@@ -69,7 +73,7 @@ export default function RegisterPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-emerald-300">AI Academy Pro</p>
           <h1 className="mt-3 text-2xl font-bold text-white">Create account</h1>
           <p className="mt-3 text-sm text-slate-400">
-            India-wide rollout: choose role and curriculum using the dropdowns below. Trial first; subscribe from pricing.
+            Paid user onboarding: register with mobile + email, then sign in and subscribe from pricing.
           </p>
         </div>
 
@@ -89,16 +93,16 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-xs font-medium text-slate-500">
-                Email
+              <label htmlFor="phoneNumber" className="block text-xs font-medium text-slate-500">
+                Mobile number (10 digits)
               </label>
               <input
-                id="email"
-                type="email"
-                autoComplete="email"
+                id="phoneNumber"
+                type="tel"
+                autoComplete="tel"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
                 className={`${selectBase} mt-2`}
               />
             </div>
@@ -162,7 +166,7 @@ export default function RegisterPage() {
                     onChange={(e) => setRole(e.target.value as PlatformRole)}
                     className={selectBase}
                   >
-                    {PLATFORM_ROLES.map((r) => (
+                    {SELECTABLE_PLATFORM_ROLES.map((r) => (
                       <option key={r} value={r}>
                         {PLATFORM_ROLE_LABELS[r]}
                       </option>

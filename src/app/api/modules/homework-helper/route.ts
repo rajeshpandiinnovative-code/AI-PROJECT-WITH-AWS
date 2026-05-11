@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
-import { cleanEnv, getGeminiModel } from "@/src/lib/env";
+import { logDemoApiUse } from "@/src/lib/demo-access";
+import { cleanEnv } from "@/src/lib/env";
+import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
 import { paidAccessGuardResponse } from "@/src/lib/subscription";
 import { describeGeminiExtractionFailure, extractGeminiGeneratedText } from "@/src/lib/gemini-response";
 
@@ -22,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
-    const model = getGeminiModel();
+    const model = await resolveGeminiModel();
     if (!apiKey) {
       return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
     }
@@ -86,6 +88,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: describeGeminiExtractionFailure(extracted) }, { status: 502 });
     }
 
+    await logDemoApiUse("api_homework_helper", {
+      standard: parsed.data.standard,
+      subject: parsed.data.subject,
+      topic: parsed.data.topic,
+    });
     return NextResponse.json({ answer: extracted.text }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to process request";

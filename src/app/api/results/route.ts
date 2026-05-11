@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { recordResult } from "@/src/db/queries";
 import { createTenantContext } from "@/src/db/tenant-context";
+import { requirePrincipalOrFounder } from "@/src/lib/rbac-guards";
 import { paidAccessGuardResponse } from "@/src/lib/subscription";
 
 type CreateResultBody = {
@@ -37,6 +38,10 @@ function parseBody(payload: unknown): CreateResultBody | null {
 export async function POST(request: Request) {
   try {
     const session = await auth();
+    const deniedByRole = requirePrincipalOrFounder(session);
+    if (deniedByRole) {
+      return deniedByRole;
+    }
     const blocked = await paidAccessGuardResponse(session);
     if (blocked) {
       return blocked;
@@ -61,6 +66,12 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    const deniedByRole = requirePrincipalOrFounder(session);
+    if (deniedByRole) {
+      return deniedByRole;
+    }
+
     const { searchParams } = new URL(request.url);
     const examId = searchParams.get("examId");
     const limitParam = searchParams.get("limit");
@@ -75,7 +86,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "limit must be a positive integer" }, { status: 400 });
     }
 
-    const tenant = createTenantContext(await auth());
+    const tenant = createTenantContext(session);
 
     const { listResultsForExamPaginated } = await import("@/src/db/queries");
     const { data, nextCursor } = await listResultsForExamPaginated(tenant, examId, {

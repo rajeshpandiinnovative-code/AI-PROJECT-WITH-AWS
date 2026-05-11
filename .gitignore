@@ -3,3 +3,12 @@ node_modules/
 /src/data/db.json
 .DS_Store
 npm-debug.log*
+test-results/
+playwright-report/
+
+# Next.js / local
+.next/
+out/
+.env*.local
+*.tsbuildinfo
+.workspace-backups/

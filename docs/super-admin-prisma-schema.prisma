@@ -1,0 +1,34 @@
+// Reference schema requested for Prisma/PostgreSQL RBAC design.
+// Project runtime currently uses Drizzle tables in `src/db/schema.ts`.
+
+enum Role {
+  SUPER_ADMIN
+  PRINCIPAL
+  TEACHER
+}
+
+model Tenant {
+  id         String   @id @default(uuid())
+  name       String
+  district   String?
+  board      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  users      User[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role
+  // null for SUPER_ADMIN (global founder account)
+  tenantId     String?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([role])
+}

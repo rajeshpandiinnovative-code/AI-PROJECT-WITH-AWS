@@ -76,6 +76,12 @@ export type DemoContextCookie = {
   state: string;
   district: string;
   city: string;
+  displayName?: string;
+  mobile?: string;
+  /** Server-issued id — present for tracked 1-day demo sessions */
+  sessionId?: string;
+  /** ISO timestamp — informational; server uses DB `expires_at` as source of truth */
+  expiresAt?: string;
 };
 
 export function parseDemoCookie(raw: string | undefined): DemoContextCookie | null {
@@ -89,7 +95,11 @@ export function parseDemoCookie(raw: string | undefined): DemoContextCookie | nu
     const state = typeof o.state === "string" ? o.state : "Tamil Nadu";
     const district = typeof o.district === "string" ? o.district : "India";
     const city = typeof o.city === "string" ? o.city : "Srivilliputhur";
-    return { board, role, state, district, city };
+    const displayName = typeof o.displayName === "string" ? o.displayName.trim() : undefined;
+    const mobile = typeof o.mobile === "string" ? o.mobile.trim() : undefined;
+    const sessionId = typeof o.sessionId === "string" ? o.sessionId.trim() : undefined;
+    const expiresAt = typeof o.expiresAt === "string" ? o.expiresAt.trim() : undefined;
+    return { board, role, state, district, city, displayName, mobile, sessionId, expiresAt };
   } catch {
     return null;
   }
@@ -149,6 +159,8 @@ export function buildDemoChartsPayload(ctx: DemoContextCookie | null, role?: str
     ctx?.state ?? "",
     ctx?.district ?? "",
     ctx?.city ?? "",
+    ctx?.displayName ?? "",
+    ctx?.mobile ?? "",
     email ?? "",
   ]);
   const mod = (n: number) => seed % n;

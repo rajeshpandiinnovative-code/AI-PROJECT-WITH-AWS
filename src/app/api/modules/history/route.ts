@@ -4,7 +4,13 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { createModuleHistory, listModuleHistory } from "@/src/db/queries";
 import { createTenantContext } from "@/src/db/tenant-context";
-import { isPaidSubscriptionEnforced, paidAccessGuardResponse, sessionHasPaidAccess } from "@/src/lib/subscription";
+import { withTenant } from "@/src/db/tenant";
+import { demoTenantSchoolId, getActiveDemoSessionFromCookies, logDemoApiUse } from "@/src/lib/demo-access";
+import {
+  isPaidSubscriptionEnforced,
+  paidAccessGuardResponse,
+  sessionHasPaidAccess,
+} from "@/src/lib/subscription";
 
 const createHistorySchema = z.object({
   moduleSlug: z.string().min(1).max(128),
@@ -13,6 +19,19 @@ const createHistorySchema = z.object({
   outputData: z.unknown(),
 });
 
+async function resolveHistoryTenant() {
+  const session = await auth();
+  const schoolId = session?.user?.schoolId?.trim();
+  if (schoolId) {
+    return createTenantContext(session);
+  }
+  const demo = await getActiveDemoSessionFromCookies();
+  if (demo) {
+    return withTenant({ schoolId: demoTenantSchoolId(demo.id) });
+  }
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -20,7 +39,13 @@ export async function POST(request: Request) {
     if (blocked) {
       return blocked;
     }
-    const tenant = createTenantContext(session);
+    const tenant = await resolveHistoryTenant();
+    if (!tenant) {
+      return NextResponse.json(
+        { error: "Sign in with a school account or start a demo session to save module history." },
+        { status: 401 },
+      );
+    }
     const payload = await request.json();
     const parsed = createHistorySchema.safeParse(payload);
 
@@ -29,6 +54,10 @@ export async function POST(request: Request) {
     }
 
     const data = await createModuleHistory(tenant, parsed.data);
+    await logDemoApiUse("module_history_saved", {
+      moduleSlug: parsed.data.moduleSlug,
+      moduleTitle: parsed.data.moduleTitle,
+    });
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to save module history";
@@ -41,16 +70,23 @@ export async function GET(request: Request) {
   try {
     const session = await auth();
     const schoolId = session?.user?.schoolId?.trim();
-    /** Guests and users before onboarding have no tenant — still allow browsing modules with empty history. */
-    if (!schoolId) {
+
+    if (schoolId) {
+      if (isPaidSubscriptionEnforced() && !(await sessionHasPaidAccess(session))) {
+        return NextResponse.json({ data: [] }, { status: 200 });
+      }
+    } else if (isPaidSubscriptionEnforced() && !session?.user) {
+      const blocked = await paidAccessGuardResponse(session);
+      if (blocked) {
+        return blocked;
+      }
+    }
+
+    const tenant = await resolveHistoryTenant();
+    if (!tenant) {
       return NextResponse.json({ data: [] }, { status: 200 });
     }
 
-    if (isPaidSubscriptionEnforced() && !(await sessionHasPaidAccess(session))) {
-      return NextResponse.json({ data: [] }, { status: 200 });
-    }
-
-    const tenant = createTenantContext(session);
     const { searchParams } = new URL(request.url);
     const moduleSlug = searchParams.get("moduleSlug");
     const limitParam = searchParams.get("limit");

@@ -148,3 +148,15 @@ export function cityOptionsFor(state: string, district: string): string[] {
   }
   return ["Urban center", "Town", "Rural cluster", "Other"];
 }
+
+/** Map a demo/school district label to its state/UT for nationwide dashboards (best-effort). */
+export function inferStateFromDistrict(district: string): string | null {
+  const d = district.trim();
+  if (!d) return null;
+  for (const state of INDIAN_STATES) {
+    if (getDistrictsForState(state).includes(d)) {
+      return state;
+    }
+  }
+  return null;
+}

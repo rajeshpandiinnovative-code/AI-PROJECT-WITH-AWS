@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
  * Baseline security headers for nationwide production deployments.
  * Keeps defaults safe without forcing a strict CSP (would break inline/HMR in dev).
  */
-export function middleware() {
+export function proxy() {
   const res = NextResponse.next();
   res.headers.set("X-Frame-Options", "SAMEORIGIN");
   res.headers.set("X-Content-Type-Options", "nosniff");

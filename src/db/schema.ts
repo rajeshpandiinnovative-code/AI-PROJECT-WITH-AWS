@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   date,
   index,
   integer,
@@ -7,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -57,14 +59,17 @@ export const schools = pgTable("schools", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-/** Individual accounts (student, parent, teacher, etc.) with their own Stripe subscription. */
 export const platformUsers = pgTable(
   "platform_users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     email: varchar("email", { length: 255 }).notNull().unique(),
+    phoneNumber: varchar("phone_number", { length: 20 }).unique(),
     passwordHash: varchar("password_hash", { length: 255 }).notNull(),
     role: varchar("role", { length: 32 }).notNull(),
+    otpSecret: varchar("otp_secret", { length: 255 }),
+    otpExpires: timestamp("otp_expires", { withTimezone: true }),
+    isVerified: boolean("is_verified").notNull().default(false),
     displayName: varchar("display_name", { length: 255 }).notNull().default(""),
     schoolId: uuid("school_id").references(() => schools.id, { onDelete: "set null" }),
     /** Curriculum board for Stripe Price resolution (with role). */
@@ -83,12 +88,36 @@ export const platformUsers = pgTable(
   }),
 );
 
+/** Stripe invoice payments — populated from webhook `invoice.paid` for revenue dashboards. */
+export const revenueEvents = pgTable(
+  "revenue_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    stripeInvoiceId: varchar("stripe_invoice_id", { length: 255 }).notNull().unique(),
+    amountMinor: integer("amount_minor").notNull(),
+    currency: varchar("currency", { length: 8 }).notNull().default("INR"),
+    schoolId: uuid("school_id").references(() => schools.id, { onDelete: "set null" }),
+    platformUserId: uuid("platform_user_id").references(() => platformUsers.id, { onDelete: "set null" }),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    occurredIdx: index("revenue_events_occurred_at_idx").on(table.occurredAt),
+    schoolIdx: index("revenue_events_school_id_idx").on(table.schoolId),
+  }),
+);
+
 export const students = pgTable(
   "students",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     name: varchar("name", { length: 255 }).notNull(),
     rollNo: varchar("roll_no", { length: 64 }).notNull(),
+    /** Homeroom / section label (CBSE/Matric). */
+    section: varchar("section", { length: 64 }),
+    /** Board registration index (CBSE/Matric/etc.). */
+    boardRegistrationNo: varchar("board_registration_no", { length: 128 }),
     schoolId: uuid("school_id")
       .notNull()
       .references(() => schools.id, { onDelete: "cascade" }),
@@ -97,6 +126,29 @@ export const students = pgTable(
   },
   (table) => ({
     schoolIdIdx: index("students_school_id_idx").on(table.schoolId),
+  }),
+);
+
+/** School Admin: which learning modules are enabled per grade band for a tenant. */
+export const schoolModuleGradePolicies = pgTable(
+  "school_module_grade_policies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    schoolId: uuid("school_id")
+      .notNull()
+      .references(() => schools.id, { onDelete: "cascade" }),
+    gradeLabel: varchar("grade_label", { length: 64 }).notNull(),
+    moduleSlug: varchar("module_slug", { length: 128 }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    schoolIdx: index("school_module_grade_policies_school_idx").on(table.schoolId),
+    schoolGradeModuleUniq: uniqueIndex("school_module_grade_policies_unique").on(
+      table.schoolId,
+      table.gradeLabel,
+      table.moduleSlug,
+    ),
   }),
 );
 
@@ -240,3 +292,51 @@ export const demoLeads = pgTable(
     createdIdx: index("demo_leads_created_idx").on(table.createdAt),
   }),
 );
+
+/** Browser demo login (1-day trial) — one row per demo session; id is mirrored in `aap_demo` cookie JSON. */
+export const demoSessions = pgTable(
+  "demo_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    displayName: varchar("display_name", { length: 255 }).notNull(),
+    mobile: varchar("mobile", { length: 32 }).notNull(),
+    board: varchar("board", { length: 128 }).notNull(),
+    role: varchar("role", { length: 32 }).notNull(),
+    state: varchar("state", { length: 128 }).notNull(),
+    district: varchar("district", { length: 128 }).notNull(),
+    city: varchar("city", { length: 128 }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    userAgent: text("user_agent"),
+    ip: varchar("ip", { length: 45 }),
+  },
+  (table) => ({
+    expiresIdx: index("demo_sessions_expires_at_idx").on(table.expiresAt),
+    startedIdx: index("demo_sessions_started_at_idx").on(table.startedAt),
+  }),
+);
+
+/** Audit trail for demo sessions (views, API usage, etc.). */
+export const demoSessionEvents = pgTable(
+  "demo_session_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => demoSessions.id, { onDelete: "cascade" }),
+    eventType: varchar("event_type", { length: 64 }).notNull(),
+    payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    sessionIdx: index("demo_session_events_session_id_idx").on(table.sessionId),
+    typeCreatedIdx: index("demo_session_events_type_created_idx").on(table.eventType, table.createdAt),
+  }),
+);
+
+/** Runtime key-value settings (founder global Gemini model, feature flags, etc.). */
+export const appSettings = pgTable("app_settings", {
+  key: varchar("key", { length: 128 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});

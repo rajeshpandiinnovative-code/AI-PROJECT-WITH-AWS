@@ -13,6 +13,7 @@ const ROLE_ENV: Record<PlatformRole, string> = {
   admin: "STRIPE_PRICE_ADMIN",
   management: "STRIPE_PRICE_MANAGEMENT",
   school_org: "STRIPE_PRICE_SCHOOL_ORG_USER",
+  master_admin: "STRIPE_PRICE_MASTER_ADMIN",
 };
 
 /**

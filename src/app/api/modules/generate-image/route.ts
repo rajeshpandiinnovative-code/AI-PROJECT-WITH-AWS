@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { logDemoApiUse } from "@/src/lib/demo-access";
 import { cleanEnv, getGeminiImageModel } from "@/src/lib/env";
 import {
   describeGeminiExtractionFailure,
@@ -97,6 +98,10 @@ export async function POST(request: Request) {
       dataUrl: `data:${img.mimeType};base64,${img.dataBase64}`,
     }));
 
+    await logDemoApiUse("api_generate_image", {
+      imageCount: dataUrls.length,
+      promptLen: prompt.length,
+    });
     return NextResponse.json(
       {
         caption: extracted.text || undefined,

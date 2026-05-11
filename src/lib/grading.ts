@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { cleanEnv, getGeminiModel } from "@/src/lib/env";
+import { cleanEnv } from "@/src/lib/env";
+import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
 import { extractGeminiGeneratedText } from "@/src/lib/gemini-response";
 
 const gradingOutputSchema = z.object({
@@ -20,7 +21,7 @@ export type GradeWithRubricOutput = z.infer<typeof gradingOutputSchema>;
 
 export async function gradeWithRubric(input: GradeWithRubricInput): Promise<GradeWithRubricOutput> {
   const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
-  const model = getGeminiModel();
+  const model = await resolveGeminiModel();
 
   if (!apiKey) {
     throw new Error("GEMINI_CONFIG_MISSING");

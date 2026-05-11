@@ -4,7 +4,9 @@ import { NextResponse } from "next/server";
 
 import { db } from "@/src/lib/db";
 import { platformUsers, schools } from "@/src/db/schema";
+import { hasActiveDemoSubscriptionBypass } from "@/src/lib/demo-access";
 import { cleanEnv } from "@/src/lib/env";
+import { isMasterAdminSession } from "@/src/lib/master-admin";
 import { resolveSessionTenantIds } from "@/src/lib/session-tenant";
 
 /** When true (production SaaS), APIs enforce trial window + Stripe subscription. */
@@ -90,6 +92,9 @@ export async function sessionHasPaidAccess(session: Session | null): Promise<boo
   if (!isPaidSubscriptionEnforced()) {
     return true;
   }
+  if (isMasterAdminSession(session)) {
+    return true;
+  }
 
   const { platformUserId, schoolId } = resolveSessionTenantIds(session);
   if (platformUserId) {
@@ -130,21 +135,38 @@ export async function paidAccessGuardResponse(session: Session | null): Promise<
   if (!isPaidSubscriptionEnforced()) {
     return null;
   }
+  if (session?.user) {
+    const ok = await sessionHasPaidAccess(session);
+    if (!ok) {
+      return NextResponse.json(
+        {
+          error: "Subscription required",
+          code: "SUBSCRIPTION_REQUIRED",
+          message: "Choose a paid plan for your role or school to use this feature.",
+        },
+        { status: 402 },
+      );
+    }
+    return null;
+  }
+  if (await hasActiveDemoSubscriptionBypass()) {
+    return null;
+  }
+  return NextResponse.json({ error: "Unauthorized", code: "AUTH_REQUIRED" }, { status: 401 });
+}
+
+/**
+ * Institution “unlock” for UI module visibility: mirrors paid access for the signed-in tenant.
+ * When `REQUIRE_PAID_SUBSCRIPTION` is off, always true. Used by `/modules` and module detail gates.
+ */
+export async function resolveSchoolUnlockedFromSession(session: Session | null): Promise<boolean> {
+  if (!isPaidSubscriptionEnforced()) {
+    return true;
+  }
   if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized", code: "AUTH_REQUIRED" }, { status: 401 });
+    return false;
   }
-  const ok = await sessionHasPaidAccess(session);
-  if (!ok) {
-    return NextResponse.json(
-      {
-        error: "Subscription required",
-        code: "SUBSCRIPTION_REQUIRED",
-        message: "Choose a paid plan for your role or school to use this feature.",
-      },
-      { status: 402 },
-    );
-  }
-  return null;
+  return sessionHasPaidAccess(session);
 }
 
 /** Legacy helper — prefer paidAccessGuardResponse(session). */

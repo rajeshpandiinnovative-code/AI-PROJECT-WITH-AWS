@@ -32,6 +32,8 @@ import { InterventionTrackerSection } from "@/src/components/InterventionTracker
 import { PilotNav } from "@/src/components/PilotNav";
 import { isPlatformDashboardWithoutSchoolAllowed } from "@/src/lib/env";
 import { resolveSessionTenantIds } from "@/src/lib/session-tenant";
+import { isMasterAdminSession } from "@/src/lib/master-admin";
+import { getImpersonatedTenantId } from "@/src/lib/rbac";
 import { isPaidSubscriptionEnforced, sessionHasPaidAccess } from "@/src/lib/subscription";
 
 export const metadata: Metadata = {
@@ -89,6 +91,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const session = await auth();
   const cookieStore = await cookies();
   const { schoolId, platformUserId } = resolveSessionTenantIds(session);
+  const impersonatedTenantId = isMasterAdminSession(session) ? getImpersonatedTenantId(cookieStore) : undefined;
 
   if (!session?.user) {
     redirect("/login?callbackUrl=%2Fdashboard");
@@ -102,7 +105,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     redirect("/pricing?reason=subscription");
   }
 
-  if (!schoolId && platformUserId && session) {
+  if (!schoolId && platformUserId && session && !impersonatedTenantId) {
     if (!isPlatformDashboardWithoutSchoolAllowed()) {
       redirect("/onboarding");
     }
@@ -118,17 +121,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           platformUserId={platformUserId}
           variant="platform"
         />
-        <PlatformRoleDashboard session={session} demo={demo} charts={charts} />
+        <PlatformRoleDashboard
+          session={session}
+          demo={demo}
+          charts={charts}
+          showMasterInsights={isMasterAdminSession(session)}
+        />
       </>
     );
   }
 
-  if (!schoolId) {
+  const activeSchoolId = impersonatedTenantId ?? schoolId;
+  if (!activeSchoolId) {
     redirect("/onboarding");
   }
 
   const school = await db.query.schools.findFirst({
-    where: eq(schools.id, schoolId),
+    where: eq(schools.id, activeSchoolId),
   });
 
   if (!school) {
@@ -153,15 +162,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const [studentStat] = await db
     .select({ n: count() })
     .from(students)
-    .where(eq(students.schoolId, schoolId));
+    .where(eq(students.schoolId, activeSchoolId));
   const [examStat] = await db
     .select({ n: count() })
     .from(exams)
-    .where(eq(exams.schoolId, schoolId));
+    .where(eq(exams.schoolId, activeSchoolId));
   const [resultStat] = await db
     .select({ n: count() })
     .from(results)
-    .where(eq(results.schoolId, schoolId));
+    .where(eq(results.schoolId, activeSchoolId));
 
   const studentCount = Number(studentStat?.n ?? 0);
   const examCount = Number(examStat?.n ?? 0);
@@ -178,7 +187,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     .from(results)
     .innerJoin(students, eq(results.studentId, students.id))
     .innerJoin(exams, eq(results.examId, exams.id))
-    .where(eq(results.schoolId, schoolId))
+    .where(eq(results.schoolId, activeSchoolId))
     .orderBy(desc(results.createdAt))
     .limit(12);
 
@@ -205,7 +214,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     });
 
   const recentInterventions = await db.query.interventionTasks.findMany({
-    where: eq(interventionTasks.schoolId, schoolId),
+    where: eq(interventionTasks.schoolId, activeSchoolId),
     orderBy: [desc(interventionTasks.createdAt)],
     limit: 20,
   });
@@ -260,12 +269,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     recentInterventions.filter((task) => task.status === "assigned" && task.sourceResultId).map((task) => [task.sourceResultId!, task]),
   );
   const recentAuditLogs = await db.query.interventionAuditLogs.findMany({
-    where: eq(interventionAuditLogs.schoolId, schoolId),
+    where: eq(interventionAuditLogs.schoolId, activeSchoolId),
     orderBy: [desc(interventionAuditLogs.createdAt)],
     limit: 8,
   });
   const digestRunLogs = await db.query.interventionAuditLogs.findMany({
-    where: eq(interventionAuditLogs.schoolId, schoolId),
+    where: eq(interventionAuditLogs.schoolId, activeSchoolId),
     orderBy: [desc(interventionAuditLogs.createdAt)],
     limit: 30,
   });
@@ -300,7 +309,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const cronDelayStatus =
     latestCronAgeHours === null ? "never" : latestCronAgeHours > 30 ? "delayed" : "on-time";
   const latestDigest = await db.query.interventionDailyDigests.findFirst({
-    where: eq(interventionDailyDigests.schoolId, schoolId),
+    where: eq(interventionDailyDigests.schoolId, activeSchoolId),
     orderBy: [desc(interventionDailyDigests.createdAt)],
   });
   const digestFreshnessHours = latestDigest
@@ -310,7 +319,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     digestFreshnessHours === null ? "missing" : digestFreshnessHours > 30 ? "stale" : "fresh";
 
   const recentModuleEvents = await db.query.moduleHistories.findMany({
-    where: eq(moduleHistories.schoolId, schoolId),
+    where: eq(moduleHistories.schoolId, activeSchoolId),
     orderBy: [desc(moduleHistories.createdAt)],
     limit: 200,
   });
@@ -423,7 +432,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <DashboardDevSessionBanner
         show={showDevSessionBanner}
         session={session}
-        schoolId={schoolId}
+        schoolId={activeSchoolId}
         platformUserId={platformUserId}
         variant="school"
       />
@@ -444,6 +453,22 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <LayoutDashboard className="size-5" aria-hidden />
           <span className="text-xs font-semibold uppercase tracking-wider">School operations console</span>
         </div>
+        {isMasterAdminSession(session) ? (
+          <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-950/25 px-4 py-3 text-sm text-amber-100">
+            <span className="font-semibold text-amber-200">Super Admin</span>
+            <span className="text-amber-100/90">
+              {" "}
+              — you are viewing this tenant as platform operator
+              {impersonatedTenantId ? (
+                <span className="font-mono"> (impersonating {impersonatedTenantId})</span>
+              ) : null}
+              . Nationwide dashboard:{" "}
+            </span>
+            <Link href="/insights" className="font-semibold text-amber-300 underline">
+              /insights
+            </Link>
+          </div>
+        ) : null}
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{school.name}</h1>
         <p className="mt-2 font-mono text-sm text-slate-400">UDISE {school.udiseCode}</p>
         <p className="mt-1 text-slate-400">

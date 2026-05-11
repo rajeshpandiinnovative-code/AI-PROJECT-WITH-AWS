@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 import { db } from "@/src/lib/db";
+import { requirePrincipalOrFounder } from "@/src/lib/rbac-guards";
 import { paidAccessGuardResponse } from "@/src/lib/subscription";
 import { interventionAuditLogs, interventionDailyDigests, interventionTasks } from "@/src/db/schema";
 
@@ -21,6 +22,10 @@ function buildCsv(headers: string[], rows: Array<Array<unknown>>): string {
 export async function GET(request: Request) {
   try {
     const session = await auth();
+    const deniedByRole = requirePrincipalOrFounder(session);
+    if (deniedByRole) {
+      return deniedByRole;
+    }
     const schoolId = session?.user?.schoolId;
     if (!schoolId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { TopModuleWorkbench } from "@/src/components/modules/TopModuleWorkbench";
+import { assertModulePageAccessOrRedirect, logDemoModuleView } from "@/src/lib/demo-access";
 import { allModules, getModuleBySlug, modulePillars } from "@/src/lib/modules";
+
+export const dynamic = "force-dynamic";
 
 type ModulePageProps = {
   params: Promise<{ slug: string }>;
@@ -16,6 +19,11 @@ export default async function ModuleDetailPage({ params }: ModulePageProps) {
   const { slug } = await params;
   const learningModule = getModuleBySlug(slug);
   if (!learningModule) notFound();
+
+  const access = await assertModulePageAccessOrRedirect(slug);
+  if (access.mode === "demo") {
+    await logDemoModuleView(access.demo.id, learningModule.slug, learningModule.title);
+  }
 
   const pillar = modulePillars.find((item) => item.modules.some((entry) => entry.slug === slug));
 

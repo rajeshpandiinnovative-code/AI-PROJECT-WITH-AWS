@@ -7,10 +7,12 @@ import { db } from "@/src/lib/db";
 import { platformUsers, schools } from "@/src/db/schema";
 import { clientIp, recordAnalyticsEvent } from "@/src/lib/analytics";
 
+/** Self-service roles only — `master_admin` is assigned via script / ops, not public API. */
 const roleEnum = z.enum(["student", "parent", "teacher", "admin", "management", "school_org"]);
 
 const registerSchema = z.object({
-  email: z.string().email().max(255),
+  email: z.string().email().max(255).optional(),
+  phoneNumber: z.string().min(10).max(20).optional(),
   password: z.string().min(8).max(128),
   displayName: z.string().min(1).max(255),
   role: roleEnum,
@@ -27,6 +29,7 @@ function summarizeRegistrationPayload(raw: unknown): Record<string, unknown> {
   const o = raw as Record<string, unknown>;
   return {
     email: typeof o.email === "string" ? o.email.trim().toLowerCase().slice(0, 255) : undefined,
+    phoneNumber: typeof o.phoneNumber === "string" ? o.phoneNumber.slice(0, 20) : undefined,
     role: typeof o.role === "string" ? o.role : undefined,
     board: typeof o.board === "string" ? o.board.slice(0, 128) : undefined,
     schoolId: typeof o.schoolId === "string" ? o.schoolId : undefined,
@@ -74,8 +77,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { email, password, displayName, role, schoolId, board } = parsed.data;
-    const normalizedEmail = email.trim().toLowerCase();
+    const { email, phoneNumber, password, displayName, role, schoolId, board } = parsed.data;
+    const normalizedPhoneNumber = phoneNumber ? phoneNumber.replace(/[^\d]/g, "").slice(-10) : undefined;
+    const normalizedEmailFromInput = email?.trim().toLowerCase();
+
+    if (!normalizedPhoneNumber) {
+      return NextResponse.json({ error: "Phone number is required for paid user registration" }, { status: 400 });
+    }
+    if (normalizedPhoneNumber.length !== 10) {
+      return NextResponse.json({ error: "Phone number must be 10 digits" }, { status: 400 });
+    }
+    const normalizedEmail = normalizedEmailFromInput ?? `user-${normalizedPhoneNumber}@phone.aap.local`;
 
     const [existing] = await db
       .select({ id: platformUsers.id })
@@ -91,6 +103,15 @@ export async function POST(request: Request) {
         userAgent: ua,
       });
       return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    }
+
+    const [existingPhone] = await db
+      .select({ id: platformUsers.id })
+      .from(platformUsers)
+      .where(eq(platformUsers.phoneNumber, normalizedPhoneNumber))
+      .limit(1);
+    if (existingPhone) {
+      return NextResponse.json({ error: "Phone number already registered" }, { status: 409 });
     }
 
     if (schoolId) {
@@ -114,7 +135,11 @@ export async function POST(request: Request) {
       .values({
         email: normalizedEmail,
         passwordHash,
+        phoneNumber: normalizedPhoneNumber,
         role,
+        otpSecret: null,
+        otpExpires: null,
+        isVerified: false,
         displayName: displayName.trim(),
         schoolId: schoolId ?? null,
         board: board?.trim() || null,
