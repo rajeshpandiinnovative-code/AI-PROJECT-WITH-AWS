@@ -17,7 +17,7 @@ export default function RegisterPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<PlatformRole>("student");
+  const [role, setRole] = useState<PlatformRole>(SELECTABLE_PLATFORM_ROLES[0] ?? "TEACHER");
   const [schoolLinkMode, setSchoolLinkMode] = useState<"none" | "id">("none");
   const [schoolId, setSchoolId] = useState("");
   const [boardSelect, setBoardSelect] = useState<string>(BILLING_BOARD_PRESETS[0]?.key ?? "MATRIC");

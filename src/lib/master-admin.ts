@@ -6,12 +6,13 @@ import { cleanEnv } from "@/src/lib/env";
  * Master operator (you): full product control.
  *
  * True when either:
- * - `platform_users.role` is **`master_admin`**, or
+ * - `platform_users.role` is **`SUPER_ADMIN`**, or
  * - Email is listed in **`MASTER_ADMIN_EMAILS`** (comma-separated in `.env.local`).
  */
 export function isMasterAdminSession(session: Session | null): boolean {
   const role = typeof session?.user?.role === "string" ? session.user.role.trim() : "";
-  if (role === "master_admin") {
+  const r = role.toLowerCase();
+  if (r === "super_admin") {
     return true;
   }
   const raw = cleanEnv(process.env.MASTER_ADMIN_EMAILS);

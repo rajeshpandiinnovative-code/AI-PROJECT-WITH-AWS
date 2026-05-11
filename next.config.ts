@@ -8,6 +8,8 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   /* You can add standard config options here as you scale Pinnacle Software Solution */
   reactStrictMode: true,
+  // WSL + repo on /mnt/c/: Turbopack often I/O-errors writing .next chunks — use `npm run build` or `next build --webpack`
+  // (see package.json). Plain `next build` defaults to Turbopack in Next.js 16.
   // Allow mobile devices on the same LAN to access dev assets/HMR.
   allowedDevOrigins: ["10.215.37.212"],
   // Stops Next from inferring C:\Users\<you> as the workspace root when another lockfile exists there.

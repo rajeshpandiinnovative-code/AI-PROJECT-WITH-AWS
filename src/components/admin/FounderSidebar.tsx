@@ -15,7 +15,7 @@ export function FounderSidebar() {
   const pathname = usePathname();
   return (
     <aside className="rounded-xl border border-slate-700 bg-slate-900/70 p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Founder's Command Center</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Founder&apos;s Command Center</p>
       <nav className="mt-4 space-y-2">
         {ITEMS.map((item) => {
           const active = pathname === item.href;

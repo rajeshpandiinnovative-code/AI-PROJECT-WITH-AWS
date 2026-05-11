@@ -14,7 +14,7 @@ import {
 type NavItem = { href: string; label: string; icon: LucideIcon; hash?: string };
 
 const items: NavItem[] = [
-  { href: "/management", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/management/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/management/staff-management", label: "Staff Directory", icon: Users },
   { href: "/school/dashboard", label: "Academic Analytics", icon: BarChart3 },
   { href: "/pricing", label: "Billing", icon: CreditCard },
@@ -35,8 +35,8 @@ export function ManagementSidebar() {
         {items.map(({ href, label, icon: Icon, hash }) => {
           const fullHref = hash ? `${href}${hash}` : href;
           const active =
-            href === "/management"
-              ? pathname === "/management" || pathname === "/management/"
+            href === "/management/dashboard"
+              ? pathname === "/management/dashboard" || pathname === "/management/dashboard/"
               : href === "/school/dashboard"
                 ? pathname.startsWith("/school/dashboard")
                 : href === "/pricing"

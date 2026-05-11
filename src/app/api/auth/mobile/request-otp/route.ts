@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       .where(
         and(
           eq(platformUsers.phoneNumber, phoneNumber),
-          inArray(platformUsers.role, ["teacher", "admin", "management", "school_org"]),
+          inArray(platformUsers.role, ["TEACHER", "SCHOOL_ADMIN", "MANAGEMENT", "PRINCIPAL"]),
         ),
       )
       .limit(1);

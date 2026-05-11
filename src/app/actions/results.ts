@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { syncInterventionTasks } from "@/src/db/queries";
 import { db } from "@/src/lib/db";
 import { results, students } from "@/src/db/schema";
 
@@ -82,6 +83,8 @@ export async function updateStudentMarks(
       schoolId: sessionSchoolId,
     });
   }
+
+  await syncInterventionTasks(input.examId, sessionSchoolId);
 
   revalidatePath("/dashboard");
   revalidatePath("/scanner");

@@ -32,7 +32,12 @@ export default async function ManagementLayout({ children }: { children: ReactNo
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Role: {role === "school_org" ? "Owner (Correspondent)" : "Management"}
+                  Role:{" "}
+                  {role === "MANAGEMENT"
+                    ? "Management"
+                    : role === "SUPER_ADMIN"
+                      ? "Super Admin"
+                      : role}
                 </span>
                 <span
                   className={`rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-wide ${

@@ -1,5 +1,11 @@
+# Dependencies (never commit)
 node_modules/
+
+# Secrets & local env (Vercel / GitHub Actions inject vars in the dashboard; never commit AWS, Gemini, or DB URLs)
 .env
+.env.local
+.env*.local
+
 /src/data/db.json
 .DS_Store
 npm-debug.log*
@@ -9,6 +15,5 @@ playwright-report/
 # Next.js / local
 .next/
 out/
-.env*.local
 *.tsbuildinfo
 .workspace-backups/

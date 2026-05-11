@@ -5,8 +5,8 @@ import { useMemo, useState } from "react";
 import { BILLING_BOARD_PRESETS } from "@/src/lib/board-billing";
 import { INDIAN_STATES, cityOptionsFor, getDistrictsForState } from "@/src/lib/india-demo-locations";
 import {
+  DEMO_SELECTABLE_PLATFORM_ROLES,
   PLATFORM_ROLE_LABELS,
-  SELECTABLE_PLATFORM_ROLES,
   type PlatformRole,
 } from "@/src/lib/platform-roles";
 
@@ -155,7 +155,7 @@ export function DemoLoginPanel() {
             onChange={(e) => setRole(e.target.value as PlatformRole)}
             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
           >
-            {SELECTABLE_PLATFORM_ROLES.map((r) => (
+            {DEMO_SELECTABLE_PLATFORM_ROLES.map((r) => (
               <option key={r} value={r}>
                 {PLATFORM_ROLE_LABELS[r]}
               </option>

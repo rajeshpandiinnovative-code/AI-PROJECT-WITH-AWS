@@ -53,12 +53,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
-    const result = await recordResult(tenant, body);
+    const result = await recordResult(tenant.schoolId, body);
 
     return NextResponse.json({ data: result }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to record result";
-    const status = message.includes("Tenant context") ? 401 : 500;
+    const status =
+      message.includes("Tenant context") || message.includes("Security Breach") ? 401 : 500;
 
     return NextResponse.json({ error: message }, { status });
   }
@@ -89,7 +90,7 @@ export async function GET(request: Request) {
     const tenant = createTenantContext(session);
 
     const { listResultsForExamPaginated } = await import("@/src/db/queries");
-    const { data, nextCursor } = await listResultsForExamPaginated(tenant, examId, {
+    const { data, nextCursor } = await listResultsForExamPaginated(tenant.schoolId, examId, {
       limit: parsedLimit,
       cursor,
     });
@@ -97,11 +98,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ data, nextCursor }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to fetch results";
-    const status = message.includes("Tenant context")
-      ? 401
-      : message.includes("Invalid cursor")
-        ? 400
-        : 500;
+    const status =
+      message.includes("Tenant context") || message.includes("Security Breach")
+        ? 401
+        : message.includes("Invalid cursor")
+          ? 400
+          : 500;
 
     return NextResponse.json({ error: message }, { status });
   }

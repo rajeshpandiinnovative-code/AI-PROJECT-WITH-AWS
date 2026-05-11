@@ -5,16 +5,10 @@ import { auth } from "@/auth";
 import { resolveSchoolUnlockedFromSession } from "@/src/lib/subscription";
 import { resolveSessionTenantIds } from "@/src/lib/session-tenant";
 
-/** Roles allowed into the institutional management console (product: Owner / Principal tier). */
-const MANAGEMENT_CONSOLE_ROLES = new Set(["management", "school_org"]);
-
-/**
- * Product “Correspondent” / institution billing owner aligns with `school_org` in this codebase.
- * `management` is the executive / principal-tier operator.
- */
+/** Roles allowed into `/management` — matches root `middleware.ts` + `canAccessManagementPath`. */
 export function canAccessManagementConsole(session: Session | null): boolean {
-  const role = typeof session?.user?.role === "string" ? session.user.role : "";
-  return MANAGEMENT_CONSOLE_ROLES.has(role);
+  const role = (typeof session?.user?.role === "string" ? session.user.role : "").trim().toLowerCase();
+  return role === "management" || role === "super_admin";
 }
 
 /** Tenant scope for all queries — never read outside this school. */

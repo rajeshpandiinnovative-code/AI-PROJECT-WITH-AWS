@@ -10,19 +10,17 @@ import { platformUsers } from "@/src/db/schema";
 export const dynamic = "force-dynamic";
 
 function displayRole(role: string): string {
-  if (role === "school_org") return "Owner / Institution";
-  if (role === "management") return "Principal (Executive)";
-  if (role === "admin") return "School Admin";
-  if (role === "teacher") return "Teacher";
-  if (role === "student") return "Student";
-  if (role === "parent") return "Parent";
-  if (role === "master_admin") return "Super Admin";
+  if (role === "SUPER_ADMIN") return "Super Admin";
+  if (role === "MANAGEMENT") return "Management (exec)";
+  if (role === "PRINCIPAL") return "Principal";
+  if (role === "SCHOOL_ADMIN") return "School Admin";
+  if (role === "TEACHER") return "Teacher";
   return role;
 }
 
 export default async function StaffManagementPage() {
   const { tenantId, paid, role, session } = await requireManagementSession();
-  const isOwner = role === "school_org";
+  const isOwner = role === "MANAGEMENT";
 
   const rows = await db
     .select({

@@ -7,20 +7,21 @@ function env(name: string): string {
 }
 
 const ROLE_ENV: Record<PlatformRole, string> = {
+  SUPER_ADMIN: "STRIPE_PRICE_MASTER_ADMIN",
+  MANAGEMENT: "STRIPE_PRICE_MANAGEMENT",
+  PRINCIPAL: "STRIPE_PRICE_MANAGEMENT",
+  SCHOOL_ADMIN: "STRIPE_PRICE_ADMIN",
+  TEACHER: "STRIPE_PRICE_TEACHER",
   student: "STRIPE_PRICE_STUDENT",
   parent: "STRIPE_PRICE_PARENT",
-  teacher: "STRIPE_PRICE_TEACHER",
-  admin: "STRIPE_PRICE_ADMIN",
-  management: "STRIPE_PRICE_MANAGEMENT",
-  school_org: "STRIPE_PRICE_SCHOOL_ORG_USER",
-  master_admin: "STRIPE_PRICE_MASTER_ADMIN",
+  school: "",
 };
 
 /**
  * Stripe Price IDs are resolved by **board** + product:
  *
  * - School tenant: `STRIPE_PRICE_SCHOOL_<BOARD_KEY>` (e.g. STRIPE_PRICE_SCHOOL_MATRIC)
- * - Individual role: `STRIPE_PRICE_<ROLE>_<BOARD_KEY>` (e.g. STRIPE_PRICE_STUDENT_MATRIC)
+ * - Individual role: `STRIPE_PRICE_<ROLE>_<BOARD_KEY>` (e.g. STRIPE_PRICE_TEACHER_MATRIC)
  *
  * `BOARD_KEY` = {@link normalizeBoardKey} (uppercase, alphanumeric + underscores).
  *
@@ -48,9 +49,10 @@ export function priceIdForRole(role: PlatformRole, board: string): string {
   if (byBoard) {
     return byBoard;
   }
-  const roleWide = env(ROLE_ENV[role]);
+  const roleWide = ROLE_ENV[role];
   if (roleWide) {
-    return roleWide;
+    const v = env(roleWide);
+    if (v) return v;
   }
   return cleanEnv(process.env.STRIPE_PRICE_SCHOOL_PRO) || "";
 }

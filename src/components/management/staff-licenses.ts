@@ -1,7 +1,7 @@
 import { cleanEnv } from "@/src/lib/env";
 
 /** Roles that consume a “staff seat” for license metering (excludes students/parents). */
-export const STAFF_LICENSE_ROLES = new Set(["teacher", "admin", "management", "school_org"]);
+export const STAFF_LICENSE_ROLES = new Set(["TEACHER", "SCHOOL_ADMIN", "MANAGEMENT", "PRINCIPAL"]);
 
 export function getStaffLicenseCap(): number {
   const raw = cleanEnv(process.env.MANAGEMENT_STAFF_LICENSE_CAP);

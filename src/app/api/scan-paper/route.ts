@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { recordResult, syncInterventionTasks } from "@/src/db/queries";
+import { exams, students } from "@/src/db/schema";
 import { db } from "@/src/lib/db";
 import { gradeWithRubric } from "@/src/lib/grading";
 import { extractTextFromImage } from "@/src/lib/vision";
-import { exams, students } from "@/src/db/schema";
 import { createTenantContext } from "@/src/db/tenant-context";
 import { paidAccessGuardResponse } from "@/src/lib/subscription";
 
@@ -19,7 +20,7 @@ const scanPaperFieldsSchema = z.object({
 });
 
 function classifyError(message: string) {
-  if (message.includes("Tenant context")) {
+  if (message.includes("Tenant context") || message.includes("Security Breach")) {
     return 401;
   }
 
@@ -29,7 +30,8 @@ function classifyError(message: string) {
     message === "EMPTY_IMAGE" ||
     message === "Invalid form fields" ||
     message === "Student not found in school" ||
-    message === "Exam not found in school"
+    message === "Exam not found in school" ||
+    message === "Student or exam not found in this school"
   ) {
     return 400;
   }
@@ -40,6 +42,10 @@ function classifyError(message: string) {
     message === "GEMINI_EMPTY_RESPONSE"
   ) {
     return 422;
+  }
+
+  if (message === "MARKING_RUBRIC_MISSING") {
+    return 503;
   }
 
   return 500;
@@ -76,6 +82,13 @@ export async function POST(request: Request) {
     }
 
     const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { requestId, error: "Unauthorized", code: "UNAUTHORIZED" },
+        { status: 401 },
+      );
+    }
+
     const blocked = await paidAccessGuardResponse(session);
     if (blocked) {
       return blocked;
@@ -91,7 +104,15 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (!student) {
-      throw new Error("Student not found in school");
+      return NextResponse.json(
+        {
+          requestId,
+          error:
+            "No student in this school matches the selected ID. Confirm the learner is on your roster or rescan with the correct student.",
+          code: "STUDENT_NOT_FOUND",
+        },
+        { status: 400 },
+      );
     }
 
     const [exam] = await db
@@ -101,7 +122,15 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (!exam) {
-      throw new Error("Exam not found in school");
+      return NextResponse.json(
+        {
+          requestId,
+          error:
+            "No exam in this school matches the selected ID. Pick an exam from your schedule or create the paper first.",
+          code: "EXAM_NOT_FOUND",
+        },
+        { status: 400 },
+      );
     }
 
     const arrayBuffer = await image.arrayBuffer();
@@ -121,13 +150,20 @@ export async function POST(request: Request) {
       maxMarks: maxMarks ?? 100,
     });
 
+    const marksPersisted = Math.round(Math.min(Math.max(Number(grading.marks), 0), maxMarks ?? 100));
+    const persisted = await recordResult(tenant.schoolId, {
+      studentId,
+      examId,
+      marks: marksPersisted,
+    });
+
+    const interventionSync = await syncInterventionTasks(examId, tenant.schoolId);
+
     const elapsedMs = Date.now() - startedAt;
     console.info("scan-paper:success", {
       requestId,
       elapsedMs,
-      tenantId: tenant.schoolId,
-      studentId,
-      examId,
+      interventionCandidates: interventionSync.upserted,
     });
 
     return NextResponse.json(
@@ -136,11 +172,17 @@ export async function POST(request: Request) {
         data: {
           studentId,
           examId,
+          resultId: persisted?.id,
           extractedText: text,
           suggestedMarks: grading.marks,
+          persistedMarks: marksPersisted,
           feedback: grading.feedback,
           confidence: grading.confidence,
           reasons: grading.reasons ?? [],
+          interventionSync: {
+            ran: true,
+            failingResultsOnExam: interventionSync.upserted,
+          },
         },
       },
       { status: 200 },
@@ -156,7 +198,11 @@ export async function POST(request: Request) {
       elapsedMs: Date.now() - startedAt,
     });
 
-    return NextResponse.json({ requestId, error: message }, { status });
+    const body: Record<string, unknown> = { requestId, error: message };
+    if (message === "Student or exam not found in this school") {
+      body.code = "STUDENT_OR_EXAM_MISMATCH";
+    }
+
+    return NextResponse.json(body, { status });
   }
 }
-

@@ -7,8 +7,8 @@ import { db } from "@/src/lib/db";
 import { platformUsers, schools } from "@/src/db/schema";
 import { clientIp, recordAnalyticsEvent } from "@/src/lib/analytics";
 
-/** Self-service roles only — `master_admin` is assigned via script / ops, not public API. */
-const roleEnum = z.enum(["student", "parent", "teacher", "admin", "management", "school_org"]);
+/** Self-service roles only — `SUPER_ADMIN` is assigned via script / ops, not public API. */
+const roleEnum = z.enum(["TEACHER", "PRINCIPAL", "SCHOOL_ADMIN", "MANAGEMENT"]);
 
 const registerSchema = z.object({
   email: z.string().email().max(255).optional(),

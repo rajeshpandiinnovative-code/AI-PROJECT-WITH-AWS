@@ -6,10 +6,10 @@ export type CheckoutScope =
   | "school"
   | "student"
   | "parent"
-  | "teacher"
-  | "admin"
-  | "management"
-  | "school_org";
+  | "TEACHER"
+  | "SCHOOL_ADMIN"
+  | "MANAGEMENT"
+  | "PRINCIPAL";
 
 type Props = {
   scope?: CheckoutScope;

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { requireSchoolAdminSession } from "@/src/components/school-admin/school-admin-access";

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, ilike, inArray, sql } from "drizzle-orm";
+import { and, count, desc, gte, ilike, inArray, sql } from "drizzle-orm";
 
 import { setAiModelAction } from "@/src/app/admin/actions";
 import { CorrespondentExecutiveDashboard } from "@/src/components/admin/CorrespondentExecutiveDashboard";
@@ -7,6 +7,16 @@ import { analyticsEvents, moduleHistories, platformUsers, results, revenueEvents
 import { db, pingDatabase } from "@/src/lib/db";
 import { requireFounder } from "@/src/lib/founder-access";
 import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
+
+async function measureDbPingLatencyMs(): Promise<number> {
+  const start = Date.now();
+  try {
+    await pingDatabase();
+    return Date.now() - start;
+  } catch {
+    return -1;
+  }
+}
 
 type Props = {
   searchParams: Promise<{ q?: string; modelUpdated?: string; modelError?: string }>;
@@ -23,7 +33,7 @@ export default async function FounderAdminDashboard({ searchParams }: Props) {
   const [teacherCountRow] = await db
     .select({ n: count() })
     .from(platformUsers)
-    .where(inArray(platformUsers.role, ["teacher", "admin", "management", "school_org"]));
+    .where(inArray(platformUsers.role, ["TEACHER", "SCHOOL_ADMIN", "MANAGEMENT", "PRINCIPAL"]));
   const [tokenEvents] = await db
     .select({ n: sql<number>`coalesce(count(${moduleHistories.id}),0)` })
     .from(moduleHistories);
@@ -108,33 +118,26 @@ export default async function FounderAdminDashboard({ searchParams }: Props) {
             id: platformUsers.id,
             name: platformUsers.displayName,
             schoolId: platformUsers.schoolId,
-            kind: sql<"teacher">`'teacher'`,
+            kind: sql<"TEACHER">`'TEACHER'`,
           })
           .from(platformUsers)
           .where(
             and(
               ilike(platformUsers.displayName, `%${q}%`),
-              inArray(platformUsers.role, ["teacher", "admin", "management", "school_org"]),
+              inArray(platformUsers.role, ["TEACHER", "SCHOOL_ADMIN", "MANAGEMENT", "PRINCIPAL"]),
             ),
           )
           .limit(8),
       ])
     : [[], []];
 
-  const dbStart = Date.now();
-  let dbLatencyMs = -1;
-  try {
-    await pingDatabase();
-    dbLatencyMs = Date.now() - dbStart;
-  } catch {
-    dbLatencyMs = -1;
-  }
+  const dbLatencyMs = await measureDbPingLatencyMs();
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-white">Founder's Command Center</h1>
+          <h1 className="text-3xl font-bold text-white">Founder&apos;s Command Center</h1>
           <p className="mt-1 text-sm text-blue-100/80">
             Institutional management cockpit for multi-tenant operations, analytics, and executive decisions.
           </p>

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte } from "drizzle-orm";
+import { and, count, desc, eq, gte, sql } from "drizzle-orm";
 
 import { importStudentsCsvAction } from "@/src/app/(auth)/school-admin/actions";
 import { ModuleToggle } from "@/src/components/school-admin/ModuleToggle";
@@ -37,9 +37,8 @@ export default async function SchoolAdminOperationsPage({ searchParams }: PagePr
   const [teacherRosterRow] = await db
     .select({ n: count() })
     .from(platformUsers)
-    .where(and(eq(platformUsers.schoolId, tenantId), eq(platformUsers.role, "teacher")));
+    .where(and(eq(platformUsers.schoolId, tenantId), eq(platformUsers.role, "TEACHER")));
 
-  const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000);
   const [scanRow] = await db
     .select({ n: count() })
     .from(moduleHistories)
@@ -47,22 +46,26 @@ export default async function SchoolAdminOperationsPage({ searchParams }: PagePr
       and(
         eq(moduleHistories.schoolId, tenantText),
         eq(moduleHistories.moduleSlug, "handwriting-improvement"),
-        gte(moduleHistories.createdAt, since48h),
+        gte(moduleHistories.createdAt, sql`(now() - interval '48 hours')`),
       ),
     );
 
-  const since8h = new Date(Date.now() - 8 * 60 * 60 * 1000);
   const recentLogins = await db
     .select({ payload: analyticsEvents.payload })
     .from(analyticsEvents)
-    .where(and(eq(analyticsEvents.eventType, "login_success"), gte(analyticsEvents.createdAt, since8h)))
+    .where(
+      and(
+        eq(analyticsEvents.eventType, "login_success"),
+        gte(analyticsEvents.createdAt, sql`(now() - interval '8 hours')`),
+      ),
+    )
     .orderBy(desc(analyticsEvents.createdAt))
     .limit(600);
 
   const activeTeacherIds = new Set<string>();
   for (const row of recentLogins) {
     const p = row.payload as Record<string, unknown>;
-    if (p.schoolId === tenantId && p.role === "teacher" && typeof p.platformUserId === "string") {
+    if (p.schoolId === tenantId && p.role === "TEACHER" && typeof p.platformUserId === "string") {
       activeTeacherIds.add(p.platformUserId);
     }
   }
@@ -120,7 +123,7 @@ export default async function SchoolAdminOperationsPage({ searchParams }: PagePr
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Operations dashboard</h1>
         <p className="mt-1 text-xs text-slate-600">
           Tenant <span className="font-mono text-slate-800">{tenantId}</span> · Role{" "}
-          <span className="font-semibold">{session.user?.role === "admin" ? "SCHOOL_ADMIN (admin)" : session.user?.role}</span>
+          <span className="font-semibold">{session.user?.role ?? "—"}</span>
         </p>
         <p className="mt-2 max-w-3xl text-[11px] leading-relaxed text-slate-500">
           Data entry, resource allocation, and class throughput. No fee collection or financial growth charts here —

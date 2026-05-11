@@ -15,17 +15,15 @@ export type RoleModuleRule =
 /**
  * Per-role visibility when `schoolUnlocked` is false (see `resolveSchoolUnlockedFromSession` in
  * `subscription.ts`). When `schoolUnlocked` is true, every slug is visible regardless of these rules.
- *
- * Edit `allow` / `deny` lists here as you define permission levels; keys must stay in sync with auth.
  */
 export const MODULE_VISIBILITY_BY_ROLE: Record<PlatformRole | "school", RoleModuleRule> = {
+  SUPER_ADMIN: { kind: "all" },
+  MANAGEMENT: { kind: "all" },
+  PRINCIPAL: { kind: "all" },
+  SCHOOL_ADMIN: { kind: "all" },
+  TEACHER: { kind: "all" },
   student: { kind: "all" },
   parent: { kind: "all" },
-  teacher: { kind: "all" },
-  admin: { kind: "all" },
-  management: { kind: "all" },
-  school_org: { kind: "all" },
-  master_admin: { kind: "all" },
   /** School UUID login (tenant session) — not a platform role, but has its own row here. */
   school: { kind: "all" },
 };
@@ -65,7 +63,6 @@ export function isModuleSlugVisible(params: {
   role: string;
   slug: string;
   schoolUnlocked: boolean;
-  /** When set, master emails always see the module (see `MASTER_ADMIN_EMAILS`). */
   session?: Session | null;
 }): boolean {
   if (params.session && isMasterAdminSession(params.session)) {

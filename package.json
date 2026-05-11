@@ -5,10 +5,12 @@
   "scripts": {
     "check:env": "node scripts/check-env.cjs",
     "db:migrate": "node scripts/run-migrate.mjs",
+    "seed:local-pilot": "node scripts/seed-local-pilot.mjs",
     "migrate": "node scripts/run-migrate.mjs",
     "db:reset:dev": "node scripts/reset-public-schema.mjs",
     "digest:cron": "node scripts/run-digest-cron.mjs",
     "verify:interventions:tables": "node scripts/verify-intervention-tables.mjs",
+    "verify:pilot-health": "tsx scripts/verify-pilot-health.ts",
     "verify:module-banks": "tsx scripts/verify-module-banks.ts",
     "import:schools": "tsx scripts/import-schools.ts",
     "import:srivilliputhur": "tsx scripts/import-schools.ts --board-type MATRIC --csv ./data/schools/srivilliputhur-block.csv",
@@ -30,7 +32,9 @@
     "dev": "next dev --webpack",
     "dev:clean": "npm run clean && next dev --webpack",
     "dev:wsl": "bash scripts/wsl-dev.sh",
-    "build": "next build",
+    "build": "next build --webpack",
+    "build:wsl": "npm run clean && next build --webpack",
+    "build:turbo": "next build",
     "deploy:vercel": "vercel deploy --prod",
     "start": "next start",
     "lint": "eslint"

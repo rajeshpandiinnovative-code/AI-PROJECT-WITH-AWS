@@ -41,7 +41,7 @@ export function PlatformRoleDashboard({
           <span className="text-xs font-semibold uppercase tracking-wider">Role dashboard</span>
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          {role === "master_admin" ? (
+          {role === "SUPER_ADMIN" ? (
             "Super Admin"
           ) : showMasterInsights ? (
             <>

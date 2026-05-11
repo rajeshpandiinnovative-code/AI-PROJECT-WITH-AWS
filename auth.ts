@@ -127,7 +127,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             authSubject: "school" as const,
           };
         } catch (err) {
-          console.error("[auth] Credentials authorize failed (check DATABASE_URL and DB reachability):", err);
+          const msg = err instanceof Error ? err.message : "unknown error";
+          console.error("[auth] Credentials authorize failed:", msg);
           return null;
         }
       },
@@ -187,9 +188,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             const founder = founderEmail();
             const persistedRole = row.role;
             token.role =
-              persistedRole === "master_admin" && email !== founder
-                ? "admin"
-                : persistedRole;
+              persistedRole === "SUPER_ADMIN" && email !== founder ? "SCHOOL_ADMIN" : persistedRole;
             token.schoolId = row.schoolId ?? undefined;
             token.board = row.board?.trim() || undefined;
             token.email = row.email;

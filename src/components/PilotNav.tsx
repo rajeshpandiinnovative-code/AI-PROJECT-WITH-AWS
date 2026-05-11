@@ -4,15 +4,21 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { BarChart3, Building2, CreditCard, LayoutDashboard, LogOut, ScanLine, Shield } from "lucide-react";
 
-/** Mirrors `school-admin-access` / `institution-access` without importing server `auth()` into this client bundle. */
+/** Mirrors `middleware-route-roles` without pulling server-only modules into the client bundle. */
 function isSchoolStaffAdminRole(role: string | undefined | null) {
-  const r = (role ?? "").trim();
-  return r === "admin" || r === "SCHOOL_ADMIN";
+  const r = (role ?? "").trim().toLowerCase();
+  return (
+    r === "school_admin" ||
+    r === "admin" ||
+    r === "principal" ||
+    r === "management" ||
+    r === "super_admin"
+  );
 }
 
 function isManagementConsoleRole(role: string | undefined | null) {
-  const r = (role ?? "").trim();
-  return r === "management" || r === "school_org";
+  const r = (role ?? "").trim().toLowerCase();
+  return r === "management" || r === "super_admin";
 }
 
 /**

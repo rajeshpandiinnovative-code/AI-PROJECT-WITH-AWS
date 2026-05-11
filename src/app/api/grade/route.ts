@@ -13,7 +13,7 @@ const bodySchema = z.object({
 });
 
 function classifyError(message: string) {
-  if (message.includes("Tenant context")) {
+  if (message.includes("Tenant context") || message.includes("Security Breach")) {
     return 401;
   }
 

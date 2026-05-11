@@ -14,10 +14,10 @@ const checkoutScopeSchema = z.enum([
   "school",
   "student",
   "parent",
-  "teacher",
-  "admin",
-  "management",
-  "school_org",
+  "TEACHER",
+  "SCHOOL_ADMIN",
+  "MANAGEMENT",
+  "PRINCIPAL",
 ]);
 
 const checkoutSchema = z.object({

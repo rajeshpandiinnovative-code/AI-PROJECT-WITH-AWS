@@ -17,9 +17,17 @@ export function founderEmail(): string {
   return "rajeshpandi.innovative@gmail.com";
 }
 
+/**
+ * Maps persisted / JWT `platform_users.role` (enum labels or legacy lowercase) to a coarse app role
+ * used for middleware `/dashboard` routing and founder detection.
+ *
+ * - `SUPER_ADMIN` → product founder tier when combined with {@link founderEmail}.
+ * - `MANAGEMENT`, `SCHOOL_ADMIN`, `PRINCIPAL`, and legacy lowercase `admin` → `PRINCIPAL` bucket for school-ops guards.
+ * - `TEACHER` → classroom staff.
+ */
 export function mapRoleToAppRole(role: string | undefined | null): AppRole {
   const r = (role ?? "").trim().toLowerCase();
-  if (r === "master_admin" || r === "super_admin") return "SUPER_ADMIN";
+  if (r === "super_admin") return "SUPER_ADMIN";
   if (r === "teacher") return "TEACHER";
   return "PRINCIPAL";
 }

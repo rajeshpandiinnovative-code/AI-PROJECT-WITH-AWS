@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -12,6 +13,15 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+
+/** Persisted on `platform_users.role` — keep middleware and JWT refresh in sync. */
+export const platformUserRoleEnum = pgEnum("platform_user_role", [
+  "SUPER_ADMIN",
+  "MANAGEMENT",
+  "PRINCIPAL",
+  "SCHOOL_ADMIN",
+  "TEACHER",
+]);
 
 /**
  * National directory (`global_schools`): UDISE+ sourced rows for onboarding search / claim.
@@ -66,7 +76,7 @@ export const platformUsers = pgTable(
     email: varchar("email", { length: 255 }).notNull().unique(),
     phoneNumber: varchar("phone_number", { length: 20 }).unique(),
     passwordHash: varchar("password_hash", { length: 255 }).notNull(),
-    role: varchar("role", { length: 32 }).notNull(),
+    role: platformUserRoleEnum("role").notNull(),
     otpSecret: varchar("otp_secret", { length: 255 }),
     otpExpires: timestamp("otp_expires", { withTimezone: true }),
     isVerified: boolean("is_verified").notNull().default(false),
@@ -195,7 +205,9 @@ export const moduleHistories = pgTable(
   "module_histories",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    schoolId: text("school_id").notNull(),
+    schoolId: uuid("school_id")
+      .notNull()
+      .references(() => schools.id, { onDelete: "cascade" }),
     moduleSlug: varchar("module_slug", { length: 128 }).notNull(),
     moduleTitle: varchar("module_title", { length: 255 }).notNull(),
     inputData: jsonb("input_data").notNull(),
@@ -209,11 +221,18 @@ export const moduleHistories = pgTable(
   }),
 );
 
+/**
+ * AI / ops queue for low-score results. Migrations **must** include the composite unique index
+ * `intervention_tasks_school_source_result_uq` on `(school_id, source_result_id)` (see `schoolSourceResultUniq`
+ * below) so `onConflictDoUpdate` in application code stays valid after `drizzle-kit generate` / push.
+ */
 export const interventionTasks = pgTable(
   "intervention_tasks",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    schoolId: text("school_id").notNull(),
+    schoolId: uuid("school_id")
+      .notNull()
+      .references(() => schools.id, { onDelete: "cascade" }),
     sourceResultId: uuid("source_result_id"),
     studentName: varchar("student_name", { length: 255 }).notNull(),
     examName: varchar("exam_name", { length: 255 }).notNull(),
@@ -226,6 +245,11 @@ export const interventionTasks = pgTable(
   (table) => ({
     schoolIdIdx: index("intervention_tasks_school_id_idx").on(table.schoolId),
     statusIdx: index("intervention_tasks_status_idx").on(table.status),
+    /** One intervention task per failing result per school (sync idempotency). */
+    schoolSourceResultUniq: uniqueIndex("intervention_tasks_school_source_result_uq").on(
+      table.schoolId,
+      table.sourceResultId,
+    ),
   }),
 );
 
@@ -233,7 +257,9 @@ export const interventionAuditLogs = pgTable(
   "intervention_audit_logs",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    schoolId: text("school_id").notNull(),
+    schoolId: uuid("school_id")
+      .notNull()
+      .references(() => schools.id, { onDelete: "cascade" }),
     actionType: varchar("action_type", { length: 64 }).notNull(),
     affectedCount: integer("affected_count").notNull().default(0),
     metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),

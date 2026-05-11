@@ -2,6 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { z } from "zod";
 
+import {
+  canAccessManagementPath,
+  canAccessSchoolAdminPath,
+  isLearnerOrClassroomStaff,
+  normalizeJwtRole,
+} from "@/src/lib/middleware-route-roles";
 import { IMPERSONATE_TENANT_COOKIE, founderEmail, mapRoleToAppRole } from "@/src/lib/rbac";
 
 export async function middleware(request: NextRequest) {
@@ -53,6 +59,30 @@ export async function middleware(request: NextRequest) {
       }
     }
     return res;
+  }
+
+  if (!token) {
+    return NextResponse.next();
+  }
+
+  const jwtRole = normalizeJwtRole(token.role);
+
+  if (pathname.startsWith("/management") || pathname.startsWith("/school-admin")) {
+    if (isLearnerOrClassroomStaff(jwtRole)) {
+      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+    }
+  }
+
+  if (pathname.startsWith("/management")) {
+    if (!canAccessManagementPath(jwtRole)) {
+      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+    }
+  }
+
+  if (pathname.startsWith("/school-admin")) {
+    if (!canAccessSchoolAdminPath(jwtRole)) {
+      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+    }
   }
 
   return NextResponse.next();

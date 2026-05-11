@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { Crown, Lock, Users, Sparkles } from "lucide-react";
 
@@ -13,6 +14,10 @@ export const dynamic = "force-dynamic";
 export default async function ManagementDashboardPage() {
   const { tenantId, paid, role } = await requireManagementSession();
 
+  if (role === "MANAGEMENT") {
+    redirect("/management/dashboard");
+  }
+
   const staffRows = await db
     .select({
       id: platformUsers.id,
@@ -23,11 +28,11 @@ export default async function ManagementDashboardPage() {
 
   const usedLicenses = staffRows.filter((r) => STAFF_LICENSE_ROLES.has(r.role)).length;
   const cap = getStaffLicenseCap();
-  const principals = staffRows.filter((r) => r.role === "management").length;
-  const admins = staffRows.filter((r) => r.role === "admin").length;
-  const teachers = staffRows.filter((r) => r.role === "teacher").length;
+  const principals = staffRows.filter((r) => r.role === "MANAGEMENT").length;
+  const admins = staffRows.filter((r) => r.role === "SCHOOL_ADMIN").length;
+  const teachers = staffRows.filter((r) => r.role === "TEACHER").length;
 
-  const isOwner = role === "school_org";
+  const isOwner = role === "MANAGEMENT";
 
   return (
     <div className="space-y-8">
@@ -76,12 +81,11 @@ export default async function ManagementDashboardPage() {
         <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-300/90">Top-down permissions</h2>
         <ul className="mt-4 space-y-3 text-sm text-slate-300">
           <li>
-            <span className="font-semibold text-amber-200">Owner (school_org):</span> full institutional view; Admin
-            Console to create/manage Principal accounts when paid.
+            <span className="font-semibold text-amber-200">Management:</span> full institutional view; Admin Console to
+            create/manage Principal accounts when paid.
           </li>
           <li>
-            <span className="font-semibold text-indigo-200">Principal (management):</span> manages School Admins and
-            Teachers.
+            <span className="font-semibold text-indigo-200">Principal:</span> manages School Admins and Teachers.
           </li>
           <li>
             <span className="font-semibold text-cyan-200">School Admin:</span> student data and schedules.

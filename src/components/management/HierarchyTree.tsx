@@ -10,14 +10,15 @@ export type HierarchyStaffRow = {
 };
 
 function tierLabel(role: string): { label: string; Icon: typeof Building2; accent: string } {
-  if (role === "school_org") return { label: "Owner / Institution", Icon: Building2, accent: "text-amber-300" };
-  if (role === "management") return { label: "Principal (Executive)", Icon: Shield, accent: "text-indigo-300" };
-  if (role === "admin") return { label: "School Admin", Icon: UserCog, accent: "text-cyan-300" };
-  if (role === "teacher") return { label: "Teacher", Icon: GraduationCap, accent: "text-emerald-300" };
+  if (role === "SUPER_ADMIN") return { label: "Super Admin", Icon: Building2, accent: "text-amber-300" };
+  if (role === "MANAGEMENT") return { label: "Management (exec)", Icon: Shield, accent: "text-indigo-300" };
+  if (role === "PRINCIPAL") return { label: "Principal", Icon: Shield, accent: "text-violet-300" };
+  if (role === "SCHOOL_ADMIN") return { label: "School Admin", Icon: UserCog, accent: "text-cyan-300" };
+  if (role === "TEACHER") return { label: "Teacher", Icon: GraduationCap, accent: "text-emerald-300" };
   return { label: "Learner / Other", Icon: Users, accent: "text-slate-400" };
 }
 
-const ORDER = ["school_org", "management", "admin", "teacher", "parent", "student", "master_admin"];
+const ORDER = ["SUPER_ADMIN", "MANAGEMENT", "PRINCIPAL", "SCHOOL_ADMIN", "TEACHER"];
 
 function sortKey(role: string): number {
   const i = ORDER.indexOf(role);

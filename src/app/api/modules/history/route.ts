@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
-    const data = await createModuleHistory(tenant, parsed.data);
+    const data = await createModuleHistory(tenant.schoolId, parsed.data);
     await logDemoApiUse("module_history_saved", {
       moduleSlug: parsed.data.moduleSlug,
       moduleTitle: parsed.data.moduleTitle,
@@ -61,7 +61,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to save module history";
-    const status = message.includes("Tenant context") ? 401 : 500;
+    const status =
+      message.includes("Tenant context") || message.includes("Security Breach") ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }
@@ -100,11 +101,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "limit must be a positive integer" }, { status: 400 });
     }
 
-    const data = await listModuleHistory(tenant, moduleSlug, parsedLimit);
+    const data = await listModuleHistory(tenant.schoolId, moduleSlug, parsedLimit);
     return NextResponse.json({ data }, { status: 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to fetch module history";
-    const status = message.includes("Tenant context") ? 401 : 500;
+    const status =
+      message.includes("Tenant context") || message.includes("Security Breach") ? 401 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }
