@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { isMockApiMode } from "@/src/lib/api-mode";
+import { MOCK_NOTES_BODY } from "@/src/lib/credit-safe-mocks";
 import { logDemoApiUse } from "@/src/lib/demo-access";
 import { cleanEnv } from "@/src/lib/env";
 import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
@@ -23,18 +25,29 @@ export async function POST(request: Request) {
       return blocked;
     }
 
-    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
-    const model = await resolveGeminiModel();
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
-    }
-
     const parsed = bodySchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     const { grade, subject, topic, style } = parsed.data;
+
+    if (isMockApiMode()) {
+      await logDemoApiUse("api_notes_generator", { grade, subject, topic, style });
+      return NextResponse.json(
+        {
+          notes: `${MOCK_NOTES_BODY}\n\n[Mock context: ${grade} · ${subject} · ${topic} · ${style}]`,
+        },
+        { status: 200 },
+      );
+    }
+
+    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
+    const model = await resolveGeminiModel();
+    if (!apiKey) {
+      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
+    }
+
     const prompt = [
       "You are AI Academy Pro Notes Generator.",
       "Create concise student notes in plain text.",

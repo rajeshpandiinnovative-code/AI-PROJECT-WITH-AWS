@@ -6,6 +6,9 @@
     "check:env": "node scripts/check-env.cjs",
     "db:migrate": "node scripts/run-migrate.mjs",
     "seed:local-pilot": "node scripts/seed-local-pilot.mjs",
+    "seed:rajesh-all-roles": "node scripts/seed-rajesh-all-roles.mjs",
+    "seed:founder-login": "node scripts/upsert-founder-login.mjs",
+    "verify:email-login": "node scripts/verify-email-login.mjs",
     "migrate": "node scripts/run-migrate.mjs",
     "db:reset:dev": "node scripts/reset-public-schema.mjs",
     "digest:cron": "node scripts/run-digest-cron.mjs",
@@ -46,6 +49,7 @@
     "drizzle-orm": "^0.45.2",
     "framer-motion": "^12.38.0",
     "geist": "^1.7.0",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
     "next-auth": "^5.0.0-beta.31",
@@ -58,6 +62,7 @@
     "zod": "^4.4.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
@@ -70,7 +75,6 @@
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5",
-    "@playwright/test": "^1.57.0"
+    "typescript": "^5"
   }
 }

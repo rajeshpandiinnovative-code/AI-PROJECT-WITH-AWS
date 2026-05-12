@@ -1,13 +1,54 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/src/lib/db";
 import { platformUsers, schools } from "@/src/db/schema";
 import { recordAnalyticsEvent } from "@/src/lib/analytics";
+import type { DevSessionUpdate } from "@/src/lib/dev-session";
+import { passwordHashSupportsBcryptVerify } from "@/src/lib/password-hash-utils";
 import { founderEmail } from "@/src/lib/rbac";
 import { z } from "zod";
+
+/** Case-insensitive match on `platform_users.email` (Google + login normalize to lower). */
+async function loadPlatformUserRowByNormalizedEmail(emailLowerTrimmed: string) {
+  const [row] = await db
+    .select()
+    .from(platformUsers)
+    .where(sql`lower(trim(${platformUsers.email})) = ${emailLowerTrimmed}`)
+    .limit(1);
+  return row;
+}
+
+/**
+ * JWT `role` from `platform_users`: founder email always SUPER_ADMIN; any other SUPER_ADMIN row is
+ * downgraded to SCHOOL_ADMIN so only the configured founder is global admin.
+ */
+function jwtRoleForPlatformUser(emailFromRow: string, persistedRole: string): string {
+  const e = emailFromRow.trim().toLowerCase();
+  if (e === founderEmail()) return "SUPER_ADMIN";
+  if (persistedRole === "SUPER_ADMIN") return "SCHOOL_ADMIN";
+  return persistedRole;
+}
+
+function googleAuthProviders() {
+  const id =
+    process.env.AUTH_GOOGLE_ID?.trim() ||
+    process.env.GOOGLE_CLIENT_ID?.trim();
+  const secret =
+    process.env.AUTH_GOOGLE_SECRET?.trim() ||
+    process.env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!id || !secret) return [];
+  return [
+    Google({
+      clientId: id,
+      clientSecret: secret,
+      allowDangerousEmailAccountLinking: true,
+    }),
+  ];
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   /** Required for Auth.js on localhost / some hosts when `AUTH_URL` is unset. */
@@ -16,6 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: "jwt",
   },
   providers: [
+    ...googleAuthProviders(),
     Credentials({
       name: "Credentials",
       credentials: {
@@ -33,21 +75,82 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : "";
           const password = typeof credentials?.password === "string" ? credentials.password : "";
 
-          if (phoneNumber && otp) {
-            const [user] = await db
-              .select()
-              .from(platformUsers)
-              .where(eq(platformUsers.phoneNumber, phoneNumber))
-              .limit(1);
-            if (!user || !user.otpSecret || !user.otpExpires) {
+          /** Email/password must run before OTP: some clients send empty strings for unused fields; OTP branch could win incorrectly. */
+          if (email && password) {
+            const user = await loadPlatformUserRowByNormalizedEmail(email);
+
+            if (!user) {
+              if (process.env.NODE_ENV === "development") {
+                console.warn("[auth] Email sign-in: no platform_users row for email:", email);
+              }
               return null;
             }
-            if (user.otpExpires.getTime() < Date.now()) {
+
+            if (!passwordHashSupportsBcryptVerify(user.passwordHash)) {
+              if (process.env.NODE_ENV === "development") {
+                console.warn("[auth] Email sign-in: password login not configured for row (use Google):", email);
+              }
               return null;
             }
-            const otpOk = await bcrypt.compare(otp, user.otpSecret);
-            if (!otpOk) {
+
+            const ok = await bcrypt.compare(password, user.passwordHash);
+            if (!ok) {
+              if (process.env.NODE_ENV === "development") {
+                console.warn("[auth] Email sign-in: password mismatch for:", email);
+              }
               return null;
+            }
+
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.displayName || user.email,
+              platformUserId: user.id,
+              role: jwtRoleForPlatformUser(user.email, user.role),
+              schoolId: user.schoolId ?? undefined,
+              board: user.board?.trim() || undefined,
+              linkedStudentId: user.linkedStudentId ?? undefined,
+              authSubject: "platform_user" as const,
+            };
+          }
+
+          if (phoneNumber.length === 10 && otp) {
+            const isDev = process.env.NODE_ENV === "development";
+            const masterOtp = (process.env.DEV_MASTER_OTP ?? "123456").trim();
+            const masterOtpOk = isDev && otp === masterOtp;
+
+            let user =
+              (
+                await db
+                  .select()
+                  .from(platformUsers)
+                  .where(eq(platformUsers.phoneNumber, phoneNumber))
+                  .limit(1)
+              )[0] ?? undefined;
+
+            /** Local QA: no row by phone (unseeded DB) — optional fallback user by email. */
+            if (!user && masterOtpOk) {
+              const fallbackEmail = process.env.DEV_MASTER_SIGNIN_EMAIL?.trim().toLowerCase();
+              if (fallbackEmail) {
+                user = (await loadPlatformUserRowByNormalizedEmail(fallbackEmail)) ?? undefined;
+              }
+            }
+
+            if (!user) {
+              return null;
+            }
+
+            if (!masterOtpOk) {
+              if (!user.otpSecret || !user.otpExpires) {
+                return null;
+              }
+              if (user.otpExpires.getTime() < Date.now()) {
+                return null;
+              }
+              const otpOk = await bcrypt.compare(otp, user.otpSecret);
+              if (!otpOk) {
+                return null;
+              }
             }
 
             await db
@@ -65,37 +168,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               email: user.email,
               name: user.displayName || user.email,
               platformUserId: user.id,
-              role: user.role,
+              role: jwtRoleForPlatformUser(user.email, user.role),
               schoolId: user.schoolId ?? undefined,
               board: user.board?.trim() || undefined,
-              authSubject: "platform_user" as const,
-            };
-          }
-
-          if (email && password) {
-            const [user] = await db
-              .select()
-              .from(platformUsers)
-              .where(eq(platformUsers.email, email))
-              .limit(1);
-
-            if (!user) {
-              return null;
-            }
-
-            const ok = await bcrypt.compare(password, user.passwordHash);
-            if (!ok) {
-              return null;
-            }
-
-            return {
-              id: user.id,
-              email: user.email,
-              name: user.displayName || user.email,
-              platformUserId: user.id,
-              role: user.role,
-              schoolId: user.schoolId ?? undefined,
-              board: user.board?.trim() || undefined,
+              linkedStudentId: user.linkedStudentId ?? undefined,
               authSubject: "platform_user" as const,
             };
           }
@@ -135,14 +211,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        const email = typeof user?.email === "string" ? user.email.trim().toLowerCase() : "";
+        if (!email) return false;
+        const row = await loadPlatformUserRowByNormalizedEmail(email);
+        if (!row) {
+          return "/login?error=no_platform_account";
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
+        if (account?.provider === "google") {
+          const email = typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
+          const row = email ? await loadPlatformUserRowByNormalizedEmail(email) : undefined;
+          if (row) {
+            token.authSubject = "platform_user";
+            token.platformUserId = row.id;
+            token.sub = row.id;
+            token.email = row.email;
+            token.role = jwtRoleForPlatformUser(row.email, row.role);
+            token.schoolId = row.schoolId ?? undefined;
+            token.board = row.board?.trim() || undefined;
+            token.linkedStudentId = row.linkedStudentId ?? undefined;
+            token.name = row.displayName?.trim() || row.email;
+          }
+        }
+
         const u = user as import("next-auth").User & { id?: string };
         const isPlatformUser =
           u.authSubject === "platform_user" ||
           (typeof u.platformUserId === "string" && u.platformUserId.length > 0);
 
-        if (isPlatformUser) {
+        if (account?.provider !== "google" && isPlatformUser) {
           token.authSubject = "platform_user";
           token.platformUserId =
             typeof u.platformUserId === "string" && u.platformUserId
@@ -154,7 +257,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.schoolId = typeof u.schoolId === "string" ? u.schoolId : undefined;
           token.board = typeof u.board === "string" ? u.board : undefined;
           token.email = typeof u.email === "string" ? u.email : undefined;
-        } else if (u.authSubject === "school" || (typeof u.schoolId === "string" && u.schoolId)) {
+          token.linkedStudentId =
+            typeof u.linkedStudentId === "string" && u.linkedStudentId ? u.linkedStudentId : undefined;
+        } else if (account?.provider !== "google" && (u.authSubject === "school" || (typeof u.schoolId === "string" && u.schoolId))) {
           token.authSubject = "school";
           token.schoolId = typeof u.schoolId === "string" ? u.schoolId : undefined;
           token.board = typeof u.board === "string" ? u.board : undefined;
@@ -179,20 +284,57 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               schoolId: platformUsers.schoolId,
               board: platformUsers.board,
               email: platformUsers.email,
+              linkedStudentId: platformUsers.linkedStudentId,
+              displayName: platformUsers.displayName,
             })
             .from(platformUsers)
             .where(eq(platformUsers.id, platformId))
             .limit(1);
           if (row) {
-            const email = row.email.trim().toLowerCase();
-            const founder = founderEmail();
-            const persistedRole = row.role;
-            token.role =
-              persistedRole === "SUPER_ADMIN" && email !== founder ? "SCHOOL_ADMIN" : persistedRole;
+            token.role = jwtRoleForPlatformUser(row.email, row.role);
             token.schoolId = row.schoolId ?? undefined;
             token.board = row.board?.trim() || undefined;
             token.email = row.email;
+            token.linkedStudentId = row.linkedStudentId ?? undefined;
+            token.name = row.displayName?.trim() || row.email;
           }
+        }
+      }
+
+      /** Local QA: override JWT tenant + role after DB sync (session.update from DevSwitcher). */
+      if (process.env.NODE_ENV === "development") {
+        if (trigger === "update" && session && typeof session === "object") {
+          const s = session as DevSessionUpdate;
+          if (s.clearDevSessionOverrides === true) {
+            delete token.devRoleOverride;
+            delete token.devSchoolIdOverride;
+            delete token.devLinkedStudentIdOverride;
+          } else {
+            if (typeof s.devRoleOverride === "string" && s.devRoleOverride.trim()) {
+              token.devRoleOverride = s.devRoleOverride.trim();
+            }
+            if (typeof s.devSchoolIdOverride === "string" && s.devSchoolIdOverride.trim()) {
+              token.devSchoolIdOverride = s.devSchoolIdOverride.trim();
+            }
+            if ("devLinkedStudentIdOverride" in s) {
+              const v = s.devLinkedStudentIdOverride;
+              if (v === null || v === undefined || v === "") {
+                delete token.devLinkedStudentIdOverride;
+              } else if (typeof v === "string") {
+                token.devLinkedStudentIdOverride = v.trim();
+              }
+            }
+          }
+        }
+
+        if (typeof token.devRoleOverride === "string" && token.devRoleOverride.length > 0) {
+          token.role = token.devRoleOverride;
+        }
+        if (typeof token.devSchoolIdOverride === "string" && token.devSchoolIdOverride.length > 0) {
+          token.schoolId = token.devSchoolIdOverride;
+        }
+        if (typeof token.devLinkedStudentIdOverride === "string" && token.devLinkedStudentIdOverride.length > 0) {
+          token.linkedStudentId = token.devLinkedStudentIdOverride;
         }
       }
 
@@ -214,7 +356,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (typeof token.email === "string") {
           session.user.email = token.email;
         }
+        if (typeof token.name === "string" && token.name.length > 0) {
+          session.user.name = token.name;
+        }
         session.user.board = typeof token.board === "string" ? token.board : undefined;
+        session.user.linkedStudentId =
+          typeof token.linkedStudentId === "string" ? token.linkedStudentId : undefined;
       }
       return session;
     },

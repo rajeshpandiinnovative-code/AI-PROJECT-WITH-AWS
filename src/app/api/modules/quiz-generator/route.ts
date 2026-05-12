@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { isMockApiMode } from "@/src/lib/api-mode";
+import { buildMockQuizBlock } from "@/src/lib/credit-safe-mocks";
 import { logDemoApiUse } from "@/src/lib/demo-access";
 import { cleanEnv } from "@/src/lib/env";
 import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
@@ -43,18 +45,31 @@ export async function POST(request: Request) {
       return blocked;
     }
 
-    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
-    const model = await resolveGeminiModel();
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
-    }
-
     const parsed = bodySchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     const { grade, subject, topic, difficulty, questionCount } = parsed.data;
+
+    if (isMockApiMode()) {
+      const data = buildMockQuizBlock(topic, subject, questionCount);
+      await logDemoApiUse("api_quiz_generator", {
+        grade,
+        subject,
+        topic,
+        difficulty,
+        questionCount,
+      });
+      return NextResponse.json({ data }, { status: 200 });
+    }
+
+    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
+    const model = await resolveGeminiModel();
+    if (!apiKey) {
+      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
+    }
+
     const prompt = [
       "You are AI Academy Pro Quiz Generator.",
       "Return only valid JSON with this exact shape:",

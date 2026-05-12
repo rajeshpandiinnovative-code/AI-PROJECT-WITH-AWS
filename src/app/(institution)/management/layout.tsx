@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { eq } from "drizzle-orm";
 
-import { ManagementSidebar } from "@/src/components/management/ManagementSidebar";
-import { requireManagementSession } from "@/src/components/management/institution-access";
+import { ManagementSidebar } from "./_components/ManagementSidebar";
+import { requireManagementSession } from "@/src/lib/management/institution-access";
 import { schools } from "@/src/db/schema";
 import { db } from "@/src/lib/db";
 

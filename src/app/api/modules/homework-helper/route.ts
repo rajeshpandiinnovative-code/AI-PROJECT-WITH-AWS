@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { isMockApiMode } from "@/src/lib/api-mode";
+import { MOCK_HOMEWORK_BODY } from "@/src/lib/credit-safe-mocks";
 import { logDemoApiUse } from "@/src/lib/demo-access";
 import { cleanEnv } from "@/src/lib/env";
 import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
@@ -23,18 +25,34 @@ export async function POST(request: Request) {
       return blocked;
     }
 
-    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
-    const model = await resolveGeminiModel();
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
-    }
-
     const parsed = bodySchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     const { standard, subject, topic, question } = parsed.data;
+
+    if (isMockApiMode()) {
+      await logDemoApiUse("api_homework_helper", {
+        standard: parsed.data.standard,
+        subject: parsed.data.subject,
+        topic: parsed.data.topic,
+      });
+      const qPreview = question.length > 120 ? `${question.slice(0, 120)}…` : question;
+      return NextResponse.json(
+        {
+          answer: `${MOCK_HOMEWORK_BODY}\n\n[Mock context: ${standard} · ${subject} · ${topic} · Q: ${qPreview}]`,
+        },
+        { status: 200 },
+      );
+    }
+
+    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
+    const model = await resolveGeminiModel();
+    if (!apiKey) {
+      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
+    }
+
     const prompt = [
       "You are AI Academy Pro Homework Helper.",
       "Return concise and student-safe educational guidance.",

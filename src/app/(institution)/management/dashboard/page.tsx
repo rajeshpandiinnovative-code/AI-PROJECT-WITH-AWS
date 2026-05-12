@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { canAccessManagementConsole } from "@/src/lib/management/institution-access";
 import {
   countDistinctStudentsWithAssignedInterventions,
   countStudentsForSchool,
@@ -18,7 +19,7 @@ export default async function ManagementCommandCenterPage() {
     redirect("/login?callbackUrl=%2Fmanagement%2Fdashboard");
   }
 
-  if (session.user.role !== "MANAGEMENT") {
+  if (!canAccessManagementConsole(session)) {
     redirect("/dashboard");
   }
 
@@ -53,7 +54,13 @@ export default async function ManagementCommandCenterPage() {
         </p>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+      <section
+        aria-labelledby="school-overview-heading"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5"
+      >
+        <h2 id="school-overview-heading" className="col-span-full text-sm font-semibold text-slate-200">
+          School overview
+        </h2>
         <article className="flex flex-col rounded-2xl border border-slate-800/90 bg-gradient-to-br from-slate-900/90 to-slate-950 p-5 shadow-lg shadow-black/20 sm:p-6">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total active students</p>
           <p className="mt-3 text-4xl font-bold tabular-nums tracking-tight text-white sm:text-5xl">{totalStudents}</p>

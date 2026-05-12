@@ -30,3 +30,8 @@ export function canAccessSchoolAdminPath(normalizedRole: string): boolean {
 export function isLearnerOrClassroomStaff(normalizedRole: string): boolean {
   return normalizedRole === "teacher" || normalizedRole === "student" || normalizedRole === "parent";
 }
+
+/** JWT carries founder / global admin — may enter any role-scoped dashboard for support & QA. */
+export function isJwtSuperAdmin(normalizedRole: string): boolean {
+  return normalizedRole === "super_admin";
+}

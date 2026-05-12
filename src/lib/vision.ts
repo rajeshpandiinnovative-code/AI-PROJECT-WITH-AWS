@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isMockApiMode } from "@/src/lib/api-mode";
 import { cleanEnv } from "@/src/lib/env";
 
 const MAX_OCR_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -33,12 +34,6 @@ type ExtractTextFromImageInput = {
  * Uses an API key (recommended for Next.js server routes). No Node SDK — avoids deprecated transitive deps.
  */
 export async function extractTextFromImage(input: ExtractTextFromImageInput) {
-  const apiKey = cleanEnv(process.env.GOOGLE_CLOUD_VISION_API_KEY);
-
-  if (!apiKey) {
-    throw new Error("VISION_CONFIG_MISSING");
-  }
-
   if (!["image/jpeg", "image/png"].includes(input.mimeType)) {
     throw new Error("UNSUPPORTED_IMAGE_TYPE");
   }
@@ -49,6 +44,22 @@ export async function extractTextFromImage(input: ExtractTextFromImageInput) {
 
   if (input.imageBuffer.byteLength > MAX_OCR_IMAGE_BYTES) {
     throw new Error("IMAGE_TOO_LARGE");
+  }
+
+  if (isMockApiMode()) {
+    return {
+      text: `[Credit-safe mock — Pinnacle Software Solution / Vision OCR]
+Class X Mathematics (sample extract)
+Q1. Solve: If α, β are roots of x² − 5x + 6 = 0, find α² + β².
+Working: α+β=5, αβ=6 ⇒ α²+β² = (α+β)² − 2αβ = 25 − 12 = 13.
+Q2. Physics: State Ohm's law. V = IR with SI units.`,
+    };
+  }
+
+  const apiKey = cleanEnv(process.env.GOOGLE_CLOUD_VISION_API_KEY);
+
+  if (!apiKey) {
+    throw new Error("VISION_CONFIG_MISSING");
   }
 
   const endpoint = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;

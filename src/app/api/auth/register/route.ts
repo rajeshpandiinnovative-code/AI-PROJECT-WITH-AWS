@@ -10,15 +10,35 @@ import { clientIp, recordAnalyticsEvent } from "@/src/lib/analytics";
 /** Self-service roles only — `SUPER_ADMIN` is assigned via script / ops, not public API. */
 const roleEnum = z.enum(["TEACHER", "PRINCIPAL", "SCHOOL_ADMIN", "MANAGEMENT"]);
 
+/** Matches `platform_users`: phone-derived synthetic email or optional real email; board stored for billing. */
 const registerSchema = z.object({
   email: z.string().email().max(255).optional(),
-  phoneNumber: z.string().min(10).max(20).optional(),
+  phoneNumber: z.string().min(1).max(32),
   password: z.string().min(8).max(128),
   displayName: z.string().min(1).max(255),
   role: roleEnum,
   schoolId: z.string().uuid().optional(),
-  board: z.string().min(1).max(128).optional(),
+  board: z.string().min(1).max(128),
+  registrationState: z.string().max(100).optional(),
+  registrationCity: z.string().max(128).optional(),
 });
+
+function normalizeRegisterJson(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") {
+    return raw;
+  }
+  const o = { ...(raw as Record<string, unknown>) };
+  if (typeof o.email === "string" && o.email.trim() === "") {
+    delete o.email;
+  }
+  if (typeof o.registrationState === "string" && o.registrationState.trim() === "") {
+    delete o.registrationState;
+  }
+  if (typeof o.registrationCity === "string" && o.registrationCity.trim() === "") {
+    delete o.registrationCity;
+  }
+  return o;
+}
 
 const TRIAL_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -35,6 +55,8 @@ function summarizeRegistrationPayload(raw: unknown): Record<string, unknown> {
     schoolId: typeof o.schoolId === "string" ? o.schoolId : undefined,
     displayNameLen: typeof o.displayName === "string" ? o.displayName.length : undefined,
     passwordLen: typeof o.password === "string" ? o.password.length : undefined,
+    registrationState: typeof o.registrationState === "string" ? o.registrationState.slice(0, 100) : undefined,
+    registrationCity: typeof o.registrationCity === "string" ? o.registrationCity.slice(0, 128) : undefined,
   };
 }
 
@@ -63,7 +85,7 @@ export async function POST(request: Request) {
       userAgent: ua,
     });
 
-    const parsed = registerSchema.safeParse(json);
+    const parsed = registerSchema.safeParse(normalizeRegisterJson(json));
     if (!parsed.success) {
       await recordAnalyticsEvent({
         eventType: "registration_validation_failed",
@@ -77,7 +99,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { email, phoneNumber, password, displayName, role, schoolId, board } = parsed.data;
+    const { email, phoneNumber, password, displayName, role, schoolId, board, registrationState, registrationCity } =
+      parsed.data;
     const normalizedPhoneNumber = phoneNumber ? phoneNumber.replace(/[^\d]/g, "").slice(-10) : undefined;
     const normalizedEmailFromInput = email?.trim().toLowerCase();
 
@@ -143,6 +166,8 @@ export async function POST(request: Request) {
         displayName: displayName.trim(),
         schoolId: schoolId ?? null,
         board: board?.trim() || null,
+        registrationState: registrationState?.trim() || null,
+        registrationCity: registrationCity?.trim() || null,
         subscriptionStatus: "trial",
         subscriptionTrialEndsAt: trialEnd,
       })
@@ -176,6 +201,22 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration failed";
+    const code =
+      typeof error === "object" && error !== null && "code" in error
+        ? String((error as { code?: unknown }).code)
+        : "";
+    if (code === "23505" || /duplicate key|unique constraint/i.test(message)) {
+      await recordAnalyticsEvent({
+        eventType: "registration_duplicate_constraint",
+        payload: { message },
+        ip,
+        userAgent: ua,
+      });
+      return NextResponse.json(
+        { error: "An account with this phone number or email already exists." },
+        { status: 409 },
+      );
+    }
     await recordAnalyticsEvent({
       eventType: "registration_server_error",
       payload: { message },

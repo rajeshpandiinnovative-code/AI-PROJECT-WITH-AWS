@@ -37,6 +37,27 @@ type CreateModuleHistoryInput = {
   outputData: unknown;
 };
 
+/** Human-readable subject bucket for mastery UI (aligned with {@link recommendedModuleForExamName}). */
+export function subjectBucketLabelFromExamName(examName: string): string {
+  const n = examName.toLowerCase();
+  if (/math|mathematics|algebra|calculus|geometry|arithm|numeracy|quant/.test(n)) {
+    return "Mathematics";
+  }
+  if (/science|physics|chemistry|biology|botany|zoology/.test(n)) {
+    return "Science";
+  }
+  if (/english|grammar|language|literature|writing|essay/.test(n)) {
+    return "English";
+  }
+  if (/computer|coding|program|python|java/.test(n)) {
+    return "Computer science";
+  }
+  if (/social|history|civics|geography|economics/.test(n)) {
+    return "Social studies";
+  }
+  return "General studies";
+}
+
 /** Map exam title to a remediation module slug for intervention tasks. */
 export function recommendedModuleForExamName(examName: string): string {
   const n = examName.toLowerCase();

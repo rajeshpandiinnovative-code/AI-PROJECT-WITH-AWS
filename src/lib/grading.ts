@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isMockApiMode } from "@/src/lib/api-mode";
 import { cleanEnv } from "@/src/lib/env";
 import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
 import { extractGeminiGeneratedText } from "@/src/lib/gemini-response";
@@ -20,6 +21,22 @@ type GradeWithRubricInput = {
 export type GradeWithRubricOutput = z.infer<typeof gradingOutputSchema>;
 
 export async function gradeWithRubric(input: GradeWithRubricInput): Promise<GradeWithRubricOutput> {
+  const maxMarks = input.maxMarks ?? 100;
+
+  if (isMockApiMode()) {
+    return gradingOutputSchema.parse({
+      marks: Math.min(78, maxMarks),
+      feedback:
+        "[Credit-safe mock — Pinnacle Software Solution] CBSE-style evaluation: answer shows partial structure; strengthen definitions and show working for numerical parts. Aligns with NCERT Class 10–12 depth.",
+      confidence: 0.86,
+      reasons: [
+        "Rubric keywords partially matched",
+        "Mock mode: no live Gemini call",
+        "Upgrade to production mode for live model grading",
+      ],
+    });
+  }
+
   const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
   const model = await resolveGeminiModel();
 
@@ -27,7 +44,6 @@ export async function gradeWithRubric(input: GradeWithRubricInput): Promise<Grad
     throw new Error("GEMINI_CONFIG_MISSING");
   }
 
-  const maxMarks = input.maxMarks ?? 100;
   const prompt = [
     "You are a strict exam evaluator.",
     "Evaluate the student's answer text against the rubric.",

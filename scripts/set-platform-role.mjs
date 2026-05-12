@@ -11,7 +11,7 @@
  * Example (founder / product super admin — set only for trusted accounts):
  *   node scripts/set-platform-role.mjs you@example.com SUPER_ADMIN
  *
- * Valid roles: SUPER_ADMIN, MANAGEMENT, PRINCIPAL, SCHOOL_ADMIN, TEACHER
+ * Valid roles: SUPER_ADMIN, MANAGEMENT, PRINCIPAL, SCHOOL_ADMIN, TEACHER, PARENT, STUDENT
  * (.env.local is loaded for DATABASE_URL)
  */
 import { config } from "dotenv";
@@ -19,7 +19,15 @@ import postgres from "postgres";
 
 config({ path: ".env.local", override: true });
 
-const ALLOWED = new Set(["SUPER_ADMIN", "MANAGEMENT", "PRINCIPAL", "SCHOOL_ADMIN", "TEACHER"]);
+const ALLOWED = new Set([
+  "SUPER_ADMIN",
+  "MANAGEMENT",
+  "PRINCIPAL",
+  "SCHOOL_ADMIN",
+  "TEACHER",
+  "PARENT",
+  "STUDENT",
+]);
 
 const emailArg = process.argv[2];
 const roleArg = process.argv[3];

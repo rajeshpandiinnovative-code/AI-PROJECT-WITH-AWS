@@ -21,6 +21,8 @@ export const platformUserRoleEnum = pgEnum("platform_user_role", [
   "PRINCIPAL",
   "SCHOOL_ADMIN",
   "TEACHER",
+  "PARENT",
+  "STUDENT",
 ]);
 
 /**
@@ -69,6 +71,27 @@ export const schools = pgTable("schools", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const students = pgTable(
+  "students",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    rollNo: varchar("roll_no", { length: 64 }).notNull(),
+    /** Homeroom / section label (CBSE/Matric). */
+    section: varchar("section", { length: 64 }),
+    /** Board registration index (CBSE/Matric/etc.). */
+    boardRegistrationNo: varchar("board_registration_no", { length: 128 }),
+    schoolId: uuid("school_id")
+      .notNull()
+      .references(() => schools.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    schoolIdIdx: index("students_school_id_idx").on(table.schoolId),
+  }),
+);
+
 export const platformUsers = pgTable(
   "platform_users",
   {
@@ -84,6 +107,12 @@ export const platformUsers = pgTable(
     schoolId: uuid("school_id").references(() => schools.id, { onDelete: "set null" }),
     /** Curriculum board for Stripe Price resolution (with role). */
     board: varchar("board", { length: 128 }),
+    /** Optional: state / UT from registration (self-service). */
+    registrationState: varchar("registration_state", { length: 100 }),
+    /** Optional: city or district from registration (self-service). */
+    registrationCity: varchar("registration_city", { length: 128 }),
+    /** When `role` is `STUDENT`, links this login to the `students` row in the same school. */
+    linkedStudentId: uuid("linked_student_id").references(() => students.id, { onDelete: "set null" }),
     stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
     stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
     subscriptionStatus: varchar("subscription_status", { length: 32 }).notNull().default("trial"),
@@ -95,6 +124,7 @@ export const platformUsers = pgTable(
   (table) => ({
     schoolIdIdx: index("platform_users_school_id_idx").on(table.schoolId),
     roleIdx: index("platform_users_role_idx").on(table.role),
+    linkedStudentIdx: index("platform_users_linked_student_id_idx").on(table.linkedStudentId),
   }),
 );
 
@@ -118,24 +148,32 @@ export const revenueEvents = pgTable(
   }),
 );
 
-export const students = pgTable(
-  "students",
+/**
+ * Parent ↔ student associations within one school. All parent-facing data access must be scoped
+ * through this table (never trust raw student ids from the client).
+ */
+export const parentStudentLinks = pgTable(
+  "parent_student_links",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 255 }).notNull(),
-    rollNo: varchar("roll_no", { length: 64 }).notNull(),
-    /** Homeroom / section label (CBSE/Matric). */
-    section: varchar("section", { length: 64 }),
-    /** Board registration index (CBSE/Matric/etc.). */
-    boardRegistrationNo: varchar("board_registration_no", { length: 128 }),
+    parentPlatformUserId: uuid("parent_platform_user_id")
+      .notNull()
+      .references(() => platformUsers.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
     schoolId: uuid("school_id")
       .notNull()
       .references(() => schools.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
-    schoolIdIdx: index("students_school_id_idx").on(table.schoolId),
+    parentStudentUniq: uniqueIndex("parent_student_links_parent_student_uq").on(
+      table.parentPlatformUserId,
+      table.studentId,
+    ),
+    schoolIdx: index("parent_student_links_school_id_idx").on(table.schoolId),
+    parentIdx: index("parent_student_links_parent_idx").on(table.parentPlatformUserId),
   }),
 );
 

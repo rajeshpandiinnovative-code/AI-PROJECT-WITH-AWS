@@ -138,7 +138,7 @@ function PricingPlansInner({ sessionBoard }: { sessionBoard?: string }) {
       </section>
 
       <div className="flex flex-wrap gap-3 text-sm px-2">
-        <Link href="/register" className="text-cyan-400 underline">
+        <Link href="/register/account" className="text-cyan-400 underline">
           Create account
         </Link>
         <Link href="/login" className="text-cyan-400 underline">

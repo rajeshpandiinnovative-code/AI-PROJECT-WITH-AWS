@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { isMockApiMode } from "@/src/lib/api-mode";
+import { MOCK_VEDIC_BODY } from "@/src/lib/credit-safe-mocks";
 import { logDemoApiUse } from "@/src/lib/demo-access";
 import { cleanEnv } from "@/src/lib/env";
 import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
@@ -75,12 +77,6 @@ export async function POST(request: Request) {
       return blocked;
     }
 
-    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
-    const model = await resolveGeminiModel();
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
-    }
-
     let json: unknown;
     try {
       json = await request.json();
@@ -98,6 +94,23 @@ export async function POST(request: Request) {
 
     if (rest.length === 0) {
       return NextResponse.json({ error: "No user messages in conversation" }, { status: 400 });
+    }
+
+    if (isMockApiMode()) {
+      await logDemoApiUse("api_vedic_chat", { messageCount: rest.length });
+      const lastUser = rest.filter((m) => m.role === "user").pop()?.content?.slice(0, 200) ?? "";
+      return NextResponse.json(
+        {
+          answer: `${MOCK_VEDIC_BODY}\n\n[Mock reply to: ${lastUser}]${context ? `\nContext: ${context}` : ""}${preamble ? `\n(Preamble retained in session.)` : ""}`,
+        },
+        { status: 200 },
+      );
+    }
+
+    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
+    const model = await resolveGeminiModel();
+    if (!apiKey) {
+      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
     }
 
     const contents = rest.map((m) => ({

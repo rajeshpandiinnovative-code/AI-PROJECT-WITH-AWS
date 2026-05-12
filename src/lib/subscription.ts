@@ -6,6 +6,7 @@ import { db } from "@/src/lib/db";
 import { platformUsers, schools } from "@/src/db/schema";
 import { hasActiveDemoSubscriptionBypass } from "@/src/lib/demo-access";
 import { cleanEnv } from "@/src/lib/env";
+import { isLaunchOperatorPhone } from "@/src/lib/marketing-constants";
 import { isMasterAdminSession } from "@/src/lib/master-admin";
 import { resolveSessionTenantIds } from "@/src/lib/session-tenant";
 
@@ -74,10 +75,18 @@ export async function platformUserHasPaidAccess(userId: string): Promise<boolean
       subscriptionStatus: true,
       subscriptionTrialEndsAt: true,
       subscriptionCurrentPeriodEnd: true,
+      phoneNumber: true,
     },
   });
 
-  return paidRowAllowed(row ?? undefined);
+  if (!row) {
+    return false;
+  }
+  if (isLaunchOperatorPhone(row.phoneNumber)) {
+    return true;
+  }
+
+  return paidRowAllowed(row);
 }
 
 /**

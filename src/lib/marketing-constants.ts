@@ -5,6 +5,12 @@ export const LAUNCH_WHATSAPP_URL = `https://wa.me/919535761292?text=${encodeURIC
   "Hello — Pinnacle Software Solution / AI Academy Pro (India-wide launch).",
 )}`;
 
+/** India nationwide launch line — bypass paid/trial gates when matched on `platform_users.phone_number`. */
+export function isLaunchOperatorPhone(phone: string | null | undefined): boolean {
+  const digits = String(phone ?? "").replace(/\D/g, "").slice(-10);
+  return digits === LAUNCH_PHONE_DISPLAY;
+}
+
 /** @deprecated Use LAUNCH_* */
 export const PILOT_PHONE_E164 = LAUNCH_PHONE_E164;
 /** @deprecated Use LAUNCH_* */

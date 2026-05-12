@@ -82,7 +82,8 @@ export async function requireModulesViewerOrRedirect(): Promise<
   if (demo) {
     return { mode: "demo", demo };
   }
-  redirect("/login?mode=demo&reason=session");
+  /** Demo login UI is optional (SHOW_DEMO); send users to standard login by default. */
+  redirect("/login?reason=session");
 }
 
 export async function logDemoModuleView(sessionId: string, slug: string, title: string) {

@@ -5,38 +5,38 @@ import { z } from "zod";
 import {
   canAccessManagementPath,
   canAccessSchoolAdminPath,
+  isJwtSuperAdmin,
   isLearnerOrClassroomStaff,
   normalizeJwtRole,
 } from "@/src/lib/middleware-route-roles";
-import { IMPERSONATE_TENANT_COOKIE, founderEmail, mapRoleToAppRole } from "@/src/lib/rbac";
+import { primaryDashboardPathForPlatformRole } from "@/src/lib/post-login-redirect";
+import { IMPERSONATE_TENANT_COOKIE } from "@/src/lib/rbac";
 
 export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const token = await getToken({ req: request });
 
+  // Session required (not tied to demo mode / SHOW_DEMO — founder session grants access later).
   if (
     !token &&
     (pathname.startsWith("/admin") ||
       pathname.startsWith("/school") ||
       pathname.startsWith("/school-admin") ||
-      pathname.startsWith("/management"))
+      pathname.startsWith("/management") ||
+      pathname.startsWith("/parent") ||
+      pathname.startsWith("/student") ||
+      pathname.startsWith("/teacher"))
   ) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const role = mapRoleToAppRole(typeof token?.role === "string" ? token.role : undefined);
-  const email = (typeof token?.email === "string" ? token.email : "").trim().toLowerCase();
-  const isFounder = role === "SUPER_ADMIN" && email === founderEmail();
-
   if (pathname === "/dashboard") {
-    if (isFounder) {
-      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
-    }
-    return NextResponse.redirect(new URL("/school/dashboard", request.url));
+    const dest = primaryDashboardPathForPlatformRole(typeof token?.role === "string" ? token.role : undefined);
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
   if (pathname.startsWith("/admin")) {
-    if (!isFounder) {
+    if (!isJwtSuperAdmin(normalizeJwtRole(token?.role))) {
       return NextResponse.redirect(new URL("/school/dashboard", request.url));
     }
 
@@ -67,8 +67,29 @@ export async function middleware(request: NextRequest) {
 
   const jwtRole = normalizeJwtRole(token.role);
 
+  if (pathname.startsWith("/parent")) {
+    if (jwtRole !== "parent" && !isJwtSuperAdmin(jwtRole)) {
+      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/student")) {
+    if (jwtRole !== "student" && !isJwtSuperAdmin(jwtRole)) {
+      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/teacher")) {
+    if (jwtRole !== "teacher" && !isJwtSuperAdmin(jwtRole)) {
+      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+    }
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/management") || pathname.startsWith("/school-admin")) {
-    if (isLearnerOrClassroomStaff(jwtRole)) {
+    if (isLearnerOrClassroomStaff(jwtRole) && !isJwtSuperAdmin(jwtRole)) {
       return NextResponse.redirect(new URL("/school/dashboard", request.url));
     }
   }
@@ -99,5 +120,11 @@ export const config = {
     "/school-admin/:path*",
     "/management",
     "/management/:path*",
+    "/parent/:path*",
+    "/student",
+    "/student/:path*",
+    "/teacher",
+    "/teacher/:path*",
+    "/founder/:path*",
   ],
 };

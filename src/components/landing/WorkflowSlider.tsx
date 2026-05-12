@@ -1,9 +1,11 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-const SLIDES = [
+import { showDemoEntrypoints } from "@/src/lib/show-demo";
+
+const SLIDES_BASE = [
   "Find & claim your school in our national directory—UDISE-aware, ready for rollout.",
   "Instant OCR on handwritten answer sheets—Tamil & English classroom handwriting supported.",
   "Intelligent grading and analytics delivered in seconds—not overnight batch jobs.",
@@ -15,9 +17,24 @@ const SLIDES = [
   "Built for India-wide deployment: secure headers, tenant isolation, and pilot-friendly billing.",
 ];
 
+const SLIDE_DEMO_ALT =
+  "Registered families and staff use secure sign-in—tenant-aware views without extra setup friction.";
+
 const WORKFLOW_SLIDE_INTERVAL_MS = 4800;
 
-export function WorkflowSlider() {
+type WorkflowSliderProps = {
+  className?: string;
+};
+
+export function WorkflowSlider({ className }: WorkflowSliderProps) {
+  const slides = useMemo(() => {
+    const copy = [...SLIDES_BASE];
+    if (!showDemoEntrypoints()) {
+      copy[4] = SLIDE_DEMO_ALT;
+    }
+    return copy;
+  }, []);
+
   const [index, setIndex] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -34,15 +51,22 @@ export function WorkflowSlider() {
   useEffect(() => {
     const ms = reduceMotion ? 9000 : WORKFLOW_SLIDE_INTERVAL_MS;
     const id = window.setInterval(() => {
-      setIndex((i) => (i + 1) % SLIDES.length);
+      setIndex((i) => (i + 1) % slides.length);
     }, ms);
     return () => window.clearInterval(id);
-  }, [reduceMotion]);
+  }, [reduceMotion, slides.length]);
+
+  const outer = [
+    "relative flex h-full min-h-[280px] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-br from-[#1E293B] to-[#0F172A] shadow-2xl shadow-black/40",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-br from-[#1E293B] to-[#0F172A] shadow-2xl shadow-black/40">
+    <div className={outer}>
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.12),transparent_55%)]" />
-      <div className="relative px-5 py-10 sm:px-10 sm:py-12">
+      <div className="relative flex flex-1 flex-col px-5 py-8 sm:px-8 sm:py-10">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-400">The workflow</p>
           <p className="text-[11px] font-medium text-slate-500">Slides auto-advance — tap a dot to jump</p>
@@ -72,16 +96,16 @@ export function WorkflowSlider() {
               className="absolute inset-x-0 top-0"
             >
               <p className="text-xs font-semibold uppercase tracking-wider text-emerald-500/90">
-                Slide {index + 1} of {SLIDES.length}
+                Slide {index + 1} of {slides.length}
               </p>
               <p className="mt-3 text-pretty text-lg font-semibold leading-snug tracking-tight text-white sm:text-xl md:text-2xl">
-                {SLIDES[index]}
+                {slides[index]}
               </p>
             </motion.div>
           </AnimatePresence>
         </div>
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-          {SLIDES.map((_, i) => (
+        <div className="mt-auto flex flex-wrap items-center justify-center gap-2 pt-8 sm:justify-start">
+          {slides.map((_, i) => (
             <button
               key={i}
               type="button"

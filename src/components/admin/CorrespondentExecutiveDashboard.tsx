@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+
+import { LAUNCH_WHATSAPP_URL } from "@/src/lib/marketing-constants";
 import {
   Bar,
   BarChart,
@@ -152,7 +154,7 @@ export function CorrespondentExecutiveDashboard({
         </div>
         <div className="mt-4">
           <a
-            href="https://wa.me/919535761292?text=Hi%20Rajesh%2C%20I%20want%20a%20live%20campus%20demo."
+            href={LAUNCH_WHATSAPP_URL}
             target="_blank"
             rel="noreferrer"
             className="inline-flex rounded-md bg-amber-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-300"

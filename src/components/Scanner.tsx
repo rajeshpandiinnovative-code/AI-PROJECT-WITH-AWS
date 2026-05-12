@@ -1,6 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+
+import { GradeSaveSuccessOverlay } from "@/src/components/lottie/GradeSaveSuccessOverlay";
+import { ProcessingOverlay } from "@/src/components/lottie/ProcessingOverlay";
 
 type GradeResponse = {
   score: number;
@@ -15,17 +19,22 @@ type ScannerProps = {
 };
 
 export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = "" }: ScannerProps) {
+  const { data: session } = useSession();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const [studentId, setStudentId] = useState(defaultStudentId);
   const [examId, setExamId] = useState(defaultExamId);
-  const [isLoading, setIsLoading] = useState(false);
+  const [busyPhase, setBusyPhase] = useState<"idle" | "grading" | "saving">("idle");
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [gradeResult, setGradeResult] = useState<GradeResponse | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [gradeSavedSignal, setGradeSavedSignal] = useState(0);
+
+  const isTeacher = session?.user?.role === "TEACHER";
+  const showHandwritingOverlay = busyPhase === "grading" && isTeacher;
 
   async function startCamera() {
     if (streamRef.current) {
@@ -62,7 +71,7 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
       return;
     }
 
-    setIsLoading(true);
+    setBusyPhase("grading");
     setStatus("AI grading in progress...");
     setGradeResult(null);
 
@@ -75,7 +84,6 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
         throw new Error("Unable to capture frame.");
       }
 
-      // Capture at native/high camera resolution.
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -114,7 +122,7 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to grade paper.");
     } finally {
-      setIsLoading(false);
+      setBusyPhase("idle");
     }
   }
 
@@ -124,26 +132,33 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
       return;
     }
 
-    setIsLoading(true);
+    setBusyPhase("saving");
     setStatus("Saving score...");
     try {
       await onConfirmSave(studentId, examId, gradeResult.score);
+      setGradeSavedSignal((n) => n + 1);
       setStatus("Score saved successfully.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to save score.");
     } finally {
-      setIsLoading(false);
+      setBusyPhase("idle");
     }
   }
 
+  const isBusy = busyPhase !== "idle";
+
   return (
-    <section className="w-full max-w-3xl rounded-xl border border-slate-600 bg-[#0F172A]/60 p-4 shadow-sm sm:p-6">
+    <section className="relative w-full max-w-3xl rounded-xl border border-slate-600 bg-[#0F172A]/60 p-4 shadow-sm sm:p-6">
+      <ProcessingOverlay open={showHandwritingOverlay} />
+
+      <GradeSaveSuccessOverlay signal={gradeSavedSignal} />
+
       <h2 className="text-xl font-semibold text-white">Answer sheet workspace</h2>
       <p className="mt-1 text-sm text-slate-400">
         Use <strong className="font-medium text-slate-300">Start camera</strong>, then{" "}
         <strong className="font-medium text-slate-300">Grade paper</strong>, review the result, and{" "}
-        <strong className="font-medium text-slate-300">Confirm &amp; save</strong>. In production, enter real
-        student and exam IDs from your school records.
+        <strong className="font-medium text-slate-300">Confirm &amp; save</strong>. In production, enter real student
+        and exam IDs from your school records.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -179,7 +194,7 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
         <button
           type="button"
           onClick={gradePaper}
-          disabled={isLoading}
+          disabled={isBusy}
           className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-60"
         >
           Grade Paper
@@ -187,7 +202,7 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
         <button
           type="button"
           onClick={confirmAndSave}
-          disabled={isLoading || !gradeResult}
+          disabled={isBusy || !gradeResult}
           className="rounded-lg border border-emerald-500/80 px-3 py-2 text-sm font-medium text-emerald-300 disabled:opacity-60"
         >
           Confirm & Save
@@ -197,15 +212,14 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
       <video ref={videoRef} className="mt-4 w-full rounded-lg bg-black" muted playsInline />
       <canvas ref={canvasRef} className="hidden" />
 
-      {isLoading ? (
+      {busyPhase === "saving" ? (
         <div className="mt-4 inline-flex items-center gap-2 text-sm text-slate-300">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
-          AI grading...
+          Saving…
         </div>
       ) : null}
 
       {previewImage ? (
-        // Runtime data URL preview from captured frame.
         // eslint-disable-next-line @next/next/no-img-element
         <img src={previewImage} alt="Captured answer sheet preview" className="mt-4 w-full rounded-lg" />
       ) : null}
@@ -225,4 +239,3 @@ export function Scanner({ onConfirmSave, defaultStudentId = "", defaultExamId = 
     </section>
   );
 }
-

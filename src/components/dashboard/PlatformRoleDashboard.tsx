@@ -5,6 +5,7 @@ import { LayoutDashboard, ExternalLink } from "lucide-react";
 import { PilotNav } from "@/src/components/PilotNav";
 import type { DashboardChartsPayload, DemoContextCookie } from "@/src/lib/dashboard-chart-data";
 import { PLATFORM_ROLE_LABELS, type PlatformRole } from "@/src/lib/platform-roles";
+import { showDemoEntrypoints } from "@/src/lib/show-demo";
 
 import { DashboardInsightCharts } from "./DashboardInsightCharts";
 
@@ -79,11 +80,18 @@ export function PlatformRoleDashboard({
               </>
             ) : (
               <>
-                Use{" "}
-                <Link href="/login?mode=demo" className="text-cyan-400 underline">
-                  Demo login
-                </Link>{" "}
-                from the home page to set context. Charts below use illustrative data until you link a school.
+                {showDemoEntrypoints() ? (
+                  <>
+                    Use{" "}
+                    <Link href="/login?mode=demo" className="text-cyan-400 underline">
+                      Demo login
+                    </Link>{" "}
+                    from the home page to set context.
+                  </>
+                ) : (
+                  <>Sign in with a school-linked account to replace illustrative data.</>
+                )}{" "}
+                Charts below use illustrative data until you link a school.
               </>
             )}
           </p>

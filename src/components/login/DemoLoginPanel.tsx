@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { BILLING_BOARD_PRESETS } from "@/src/lib/board-billing";
@@ -9,6 +10,7 @@ import {
   PLATFORM_ROLE_LABELS,
   type PlatformRole,
 } from "@/src/lib/platform-roles";
+import { DEV_MASTER_OTP_CLIENT } from "@/src/lib/dev-auth-public";
 
 const DEFAULT_REGION_STATE = "Tamil Nadu";
 
@@ -63,6 +65,39 @@ export function DemoLoginPanel() {
       if (!res.ok) {
         setError("Could not start demo. Try again.");
         setBusy(false);
+        return;
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        const quickRaw =
+          typeof process.env.NEXT_PUBLIC_DEV_QUICK_LOGIN_MOBILE === "string"
+            ? process.env.NEXT_PUBLIC_DEV_QUICK_LOGIN_MOBILE
+            : "";
+        const quickPhone = quickRaw.replace(/\D/g, "").slice(-10);
+        if (quickPhone.length === 10) {
+          const { signIn } = await import("next-auth/react");
+          await signIn("credentials", {
+            phoneNumber: quickPhone,
+            otp: DEV_MASTER_OTP_CLIENT,
+            redirect: false,
+          });
+          window.location.assign("/dashboard");
+          setBusy(false);
+          return;
+        }
+      }
+
+      // Staff roles use school consoles after real sign-in; demo cookie alone is not NextAuth-jwt.
+      if (role === "MANAGEMENT") {
+        window.location.assign("/login?callbackUrl=%2Fmanagement%2Fdashboard");
+        return;
+      }
+      if (role === "TEACHER") {
+        window.location.assign("/login?callbackUrl=%2Fteacher%2Fdashboard");
+        return;
+      }
+      if (role === "PRINCIPAL" || role === "SCHOOL_ADMIN") {
+        window.location.assign("/login?callbackUrl=%2Fschool%2Fdashboard");
         return;
       }
       window.location.assign("/modules");
@@ -238,6 +273,13 @@ export function DemoLoginPanel() {
         >
           {busy ? "Starting demo…" : "Continue to modules"}
         </button>
+
+        <p className="text-center text-sm text-slate-500">
+          Subscribing as a school?{" "}
+          <Link href="/register/account" className="text-cyan-400 underline">
+            Create paid account
+          </Link>
+        </p>
       </form>
     </div>
   );

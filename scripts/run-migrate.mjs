@@ -90,6 +90,10 @@ async function migrationAlreadySatisfied(filename) {
     `;
     return Boolean(r?.ok);
   }
+  if (filename === "0009_parent_student_portal.sql") {
+    const [r] = await sql`SELECT to_regclass('public.parent_student_links') IS NOT NULL AS ok`;
+    return Boolean(r?.ok);
+  }
   return false;
 }
 

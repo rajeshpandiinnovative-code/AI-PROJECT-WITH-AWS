@@ -16,7 +16,7 @@ export const PLATFORM_ROLES = [
 
 export type PlatformRole = (typeof PLATFORM_ROLES)[number];
 
-/** Roles shown on `/register` (self-service; excludes `SUPER_ADMIN`). */
+/** Roles shown on `/register/account` (self-service; excludes `SUPER_ADMIN`). */
 export const SELECTABLE_PLATFORM_ROLES: readonly PlatformRole[] = [
   "TEACHER",
   "PRINCIPAL",

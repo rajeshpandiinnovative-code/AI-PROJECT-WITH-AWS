@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/auth";
+import { isMockApiMode } from "@/src/lib/api-mode";
+import { MOCK_IMAGE_CAPTION } from "@/src/lib/credit-safe-mocks";
 import { logDemoApiUse } from "@/src/lib/demo-access";
 import { cleanEnv, getGeminiImageModel } from "@/src/lib/env";
 import {
@@ -29,18 +31,33 @@ export async function POST(request: Request) {
       return blocked;
     }
 
-    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
-    const model = getGeminiImageModel();
-    if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
-    }
-
     const parsed = bodySchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
 
     const { prompt } = parsed.data;
+
+    if (isMockApiMode()) {
+      await logDemoApiUse("api_generate_image", {
+        imageCount: 0,
+        promptLen: prompt.length,
+      });
+      return NextResponse.json(
+        {
+          caption: `${MOCK_IMAGE_CAPTION} Prompt preview: ${prompt.slice(0, 160)}${prompt.length > 160 ? "…" : ""}`,
+          images: [],
+          mock: true,
+        },
+        { status: 200 },
+      );
+    }
+
+    const apiKey = cleanEnv(process.env.GEMINI_API_KEY);
+    const model = getGeminiImageModel();
+    if (!apiKey) {
+      return NextResponse.json({ error: "GEMINI_CONFIG_MISSING" }, { status: 503 });
+    }
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,

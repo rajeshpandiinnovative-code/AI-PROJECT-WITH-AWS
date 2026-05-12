@@ -1,6 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+
+import { GradeSaveSuccessOverlay } from "@/src/components/lottie/GradeSaveSuccessOverlay";
+import { ProcessingOverlay } from "@/src/components/lottie/ProcessingOverlay";
 
 type ScanResult = {
   extractedText: string;
@@ -17,6 +21,7 @@ type ScanPaperPanelProps = {
 const CONFIDENCE_THRESHOLD = 0.6;
 
 export function ScanPaperPanel({ onConfirmMarks }: ScanPaperPanelProps) {
+  const { data: session } = useSession();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -29,6 +34,11 @@ export function ScanPaperPanel({ onConfirmMarks }: ScanPaperPanelProps) {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [gradeSavedSignal, setGradeSavedSignal] = useState(0);
+
+  const isTeacher = session?.user?.role === "TEACHER";
+  const showHandwritingOverlay = analyzing && isTeacher;
 
   const confidenceWarning = useMemo(() => {
     if (!result) {
@@ -121,6 +131,7 @@ export function ScanPaperPanel({ onConfirmMarks }: ScanPaperPanelProps) {
     }
 
     setIsBusy(true);
+    setAnalyzing(true);
     setStatus("Analyzing paper...");
 
     try {
@@ -171,6 +182,7 @@ export function ScanPaperPanel({ onConfirmMarks }: ScanPaperPanelProps) {
 
     try {
       await onConfirmMarks(studentId, examId, result.suggestedMarks);
+      setGradeSavedSignal((n) => n + 1);
       setStatus("Marks updated successfully.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to update marks.");
@@ -180,7 +192,11 @@ export function ScanPaperPanel({ onConfirmMarks }: ScanPaperPanelProps) {
   }
 
   return (
-    <section className="w-full max-w-3xl rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <section className="relative w-full max-w-3xl rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <ProcessingOverlay open={showHandwritingOverlay} />
+
+      <GradeSaveSuccessOverlay signal={gradeSavedSignal} />
+
       <h2 className="text-xl font-semibold">Scan paper</h2>
       <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
         Pinnacle workflow: capture → rubric-based auto-grade → confirm final marks.

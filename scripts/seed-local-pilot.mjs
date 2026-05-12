@@ -45,16 +45,16 @@ const schools = [
   },
 ];
 
-/** email, role, schoolId — must match `platform_user_role` enum */
+/** email, role, schoolId, phone_number (10 digits, unique) — must match `platform_user_role` enum */
 const users = [
-  ["pilot-owner-a@local.test", "MANAGEMENT", SCHOOL_A_ID],
-  ["pilot-principal-a@local.test", "PRINCIPAL", SCHOOL_A_ID],
-  ["pilot-admin-a@local.test", "SCHOOL_ADMIN", SCHOOL_A_ID],
-  ["pilot-teacher-a@local.test", "TEACHER", SCHOOL_A_ID],
-  ["pilot-owner-b@local.test", "MANAGEMENT", SCHOOL_B_ID],
-  ["pilot-principal-b@local.test", "PRINCIPAL", SCHOOL_B_ID],
-  ["pilot-admin-b@local.test", "SCHOOL_ADMIN", SCHOOL_B_ID],
-  ["pilot-teacher-b@local.test", "TEACHER", SCHOOL_B_ID],
+  ["pilot-owner-a@local.test", "MANAGEMENT", SCHOOL_A_ID, "9876500001"],
+  ["pilot-principal-a@local.test", "PRINCIPAL", SCHOOL_A_ID, "9876500002"],
+  ["pilot-admin-a@local.test", "SCHOOL_ADMIN", SCHOOL_A_ID, "9876500003"],
+  ["pilot-teacher-a@local.test", "TEACHER", SCHOOL_A_ID, "9876500004"],
+  ["pilot-owner-b@local.test", "MANAGEMENT", SCHOOL_B_ID, "9876500005"],
+  ["pilot-principal-b@local.test", "PRINCIPAL", SCHOOL_B_ID, "9876500006"],
+  ["pilot-admin-b@local.test", "SCHOOL_ADMIN", SCHOOL_B_ID, "9876500007"],
+  ["pilot-teacher-b@local.test", "TEACHER", SCHOOL_B_ID, "9876500008"],
 ];
 
 try {
@@ -69,12 +69,12 @@ try {
     console.log("School upserted:", s.udise, s.name);
   }
 
-  for (const [email, role, schoolId] of users) {
+  for (const [email, role, schoolId, phone] of users) {
     const displayName = email.split("@")[0].replace(/-/g, " ");
     const [row] = await sql`
       INSERT INTO public.platform_users (
         email, password_hash, role, display_name, school_id,
-        is_verified, subscription_status
+        is_verified, subscription_status, phone_number
       )
       VALUES (
         ${email},
@@ -83,16 +83,18 @@ try {
         ${displayName},
         ${schoolId}::uuid,
         true,
-        'trial'
+        'trial',
+        ${phone}
       )
       ON CONFLICT (email) DO UPDATE SET
         role = EXCLUDED.role,
         school_id = EXCLUDED.school_id,
         display_name = EXCLUDED.display_name,
-        password_hash = EXCLUDED.password_hash
+        password_hash = EXCLUDED.password_hash,
+        phone_number = EXCLUDED.phone_number
       RETURNING id
     `;
-    console.log("User upserted:", email, role, row?.id ?? "");
+    console.log("User upserted:", email, role, phone, row?.id ?? "");
   }
 
   const [c1] = await sql`SELECT count(*)::int AS n FROM public.students WHERE school_id = ${SCHOOL_A_ID}::uuid`;
@@ -105,6 +107,9 @@ try {
   }
 
   console.log("\nDone. Log in with any pilot email and password:", PASSWORD);
+  console.log(
+    "Dev master OTP (NODE_ENV=development): use phone on platform_users + OTP 123456 — e.g. Management School A → 9876500001",
+  );
   console.log("School A id:", SCHOOL_A_ID, "| School B id:", SCHOOL_B_ID);
 } catch (e) {
   console.error(e);
