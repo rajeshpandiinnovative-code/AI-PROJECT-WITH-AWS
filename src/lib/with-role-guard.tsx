@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 
 import { auth } from "@/auth";
 import { sessionAppRole, type AppRole } from "@/src/lib/rbac";
+import { primaryDashboardPathForPlatformRole } from "@/src/lib/post-login-redirect";
 
 type GuardedComponent<P> = (props: P & { session: Session }) => Promise<ReactElement> | ReactElement;
 
@@ -22,7 +23,7 @@ export function withRoleGuard<P extends object>(
     }
     const role = sessionAppRole(session);
     if (!allowed.includes(role)) {
-      redirect("/dashboard");
+      redirect(primaryDashboardPathForPlatformRole(session.user.role));
     }
     return component({ ...props, session });
   };

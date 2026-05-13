@@ -16,6 +16,9 @@ export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const token = await getToken({ req: request });
 
+  const roleDashboard = (role: unknown) =>
+    primaryDashboardPathForPlatformRole(typeof role === "string" ? role : undefined);
+
   // Session required (not tied to demo mode / SHOW_DEMO — founder session grants access later).
   if (
     !token &&
@@ -31,13 +34,12 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname === "/dashboard") {
-    const dest = primaryDashboardPathForPlatformRole(typeof token?.role === "string" ? token.role : undefined);
-    return NextResponse.redirect(new URL(dest, request.url));
+    return NextResponse.redirect(new URL(roleDashboard(token?.role), request.url));
   }
 
   if (pathname.startsWith("/admin")) {
     if (!isJwtSuperAdmin(normalizeJwtRole(token?.role))) {
-      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+      return NextResponse.redirect(new URL(roleDashboard(token?.role), request.url));
     }
 
     const res = NextResponse.next();
@@ -69,40 +71,40 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/parent")) {
     if (jwtRole !== "parent" && !isJwtSuperAdmin(jwtRole)) {
-      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
     }
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/student")) {
     if (jwtRole !== "student" && !isJwtSuperAdmin(jwtRole)) {
-      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
     }
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/teacher")) {
     if (jwtRole !== "teacher" && !isJwtSuperAdmin(jwtRole)) {
-      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
     }
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/management") || pathname.startsWith("/school-admin")) {
     if (isLearnerOrClassroomStaff(jwtRole) && !isJwtSuperAdmin(jwtRole)) {
-      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
     }
   }
 
   if (pathname.startsWith("/management")) {
     if (!canAccessManagementPath(jwtRole)) {
-      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
     }
   }
 
   if (pathname.startsWith("/school-admin")) {
     if (!canAccessSchoolAdminPath(jwtRole)) {
-      return NextResponse.redirect(new URL("/school/dashboard", request.url));
+      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
     }
   }
 

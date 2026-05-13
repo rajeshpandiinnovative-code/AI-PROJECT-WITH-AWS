@@ -2,22 +2,14 @@ import type { Session } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { primaryDashboardPathForPlatformRole } from "@/src/lib/post-login-redirect";
 import { resolveSchoolUnlockedFromSession } from "@/src/lib/subscription";
-import { resolveSessionTenantIds } from "@/src/lib/session-tenant";
+import { resolveEffectiveSchoolId } from "@/src/lib/session-tenant";
 
 /** Roles allowed into `/management` — matches root `middleware.ts` + `canAccessManagementPath`. */
 export function canAccessManagementConsole(session: Session | null): boolean {
   const role = (typeof session?.user?.role === "string" ? session.user.role : "").trim().toLowerCase();
   return role === "management" || role === "super_admin";
-}
-
-/** Tenant scope for all queries — never read outside this school. */
-export function requireManagementSchoolId(session: Session | null): string {
-  const { schoolId } = resolveSessionTenantIds(session);
-  if (!schoolId) {
-    redirect("/school/dashboard");
-  }
-  return schoolId;
 }
 
 export async function isPaidInstitution(session: Session | null): Promise<boolean> {
@@ -35,9 +27,14 @@ export async function requireManagementSession(): Promise<{
     redirect("/login?callbackUrl=%2Fmanagement");
   }
   if (!canAccessManagementConsole(session)) {
-    redirect("/school/dashboard");
+    redirect(primaryDashboardPathForPlatformRole(session.user.role));
   }
-  const tenantId = requireManagementSchoolId(session);
+
+  const tenantId = await resolveEffectiveSchoolId(session);
+  if (!tenantId) {
+    redirect(primaryDashboardPathForPlatformRole(session.user.role));
+  }
+
   const paid = await isPaidInstitution(session);
   const role = typeof session.user.role === "string" ? session.user.role : "";
   return { session, tenantId, paid, role };

@@ -392,17 +392,17 @@ export async function getTopNeededInterventionModules(
 ): Promise<InterventionModuleCountRow[]> {
   const sid = requireStrictTenantSchoolId(schoolId);
   const lim = Math.min(Math.max(limit, 1), 20);
-  const rows = await db.execute(
-    sql`
-      SELECT recommended_module AS "recommendedModule", COUNT(*)::int AS "taskCount"
-      FROM intervention_tasks
-      WHERE school_id = ${sid}::uuid
-      GROUP BY recommended_module
-      ORDER BY "taskCount" DESC
-      LIMIT ${lim}
-    `,
-  );
-  return Array.from(rows as unknown as Iterable<Record<string, unknown>>).map((r) => ({
+  const rows = await db
+    .select({
+      recommendedModule: interventionTasks.recommendedModule,
+      taskCount: sql<number>`cast(count(*) as int)`,
+    })
+    .from(interventionTasks)
+    .where(eq(interventionTasks.schoolId, sid))
+    .groupBy(interventionTasks.recommendedModule)
+    .orderBy(desc(sql`count(*)`))
+    .limit(lim);
+  return rows.map((r) => ({
     recommendedModule: String(r.recommendedModule ?? ""),
     taskCount: Number(r.taskCount ?? 0),
   }));

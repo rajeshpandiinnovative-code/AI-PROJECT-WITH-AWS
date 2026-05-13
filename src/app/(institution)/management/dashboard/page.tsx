@@ -1,29 +1,17 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
-import { canAccessManagementConsole } from "@/src/lib/management/institution-access";
+import { requireManagementSession } from "@/src/lib/management/institution-access";
 import {
   countDistinctStudentsWithAssignedInterventions,
   countStudentsForSchool,
   getTopNeededInterventionModules,
   listPriorityInterventionTasks,
 } from "@/src/db/queries";
-import { createTenantContext } from "@/src/db/tenant-context";
 
 export const dynamic = "force-dynamic";
 
 export default async function ManagementCommandCenterPage() {
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/login?callbackUrl=%2Fmanagement%2Fdashboard");
-  }
-
-  if (!canAccessManagementConsole(session)) {
-    redirect("/dashboard");
-  }
-
-  const { schoolId } = createTenantContext(session);
+  const { tenantId: schoolId } = await requireManagementSession();
 
   const [totalStudents, studentsWithActiveTasks, topModules, feedTasks] = await Promise.all([
     countStudentsForSchool(schoolId),
