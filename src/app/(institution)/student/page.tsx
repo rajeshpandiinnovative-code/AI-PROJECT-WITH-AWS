@@ -3,10 +3,18 @@ import { StrengthMeter } from "@/src/components/student/StrengthMeter";
 import { requireStudentSession } from "@/src/components/student/student-access";
 import { fetchStudentSubjectMastery } from "@/src/lib/parent-student-portal";
 import { modulePillars } from "@/src/lib/modules";
+import { isMockApiMode } from "@/src/lib/api-mode";
+import { DashboardMain } from "@/src/components/ghost-mode/DashboardMain";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudentPortalPage() {
+  const mockMode = isMockApiMode();
+
+  if (mockMode) {
+    return <DashboardMain />;
+  }
+
   const { schoolId, studentId } = await requireStudentSession();
 
   const mastery = studentId ? await fetchStudentSubjectMastery(schoolId, studentId) : [];
