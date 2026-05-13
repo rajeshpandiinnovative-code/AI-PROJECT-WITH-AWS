@@ -4,8 +4,13 @@ import { eq } from "drizzle-orm";
 import { requireStudentSession } from "@/src/components/student/student-access";
 import { schools } from "@/src/db/schema";
 import { db } from "@/src/lib/db";
+import { isMockApiMode } from "@/src/lib/api-mode";
 
 export default async function StudentInstitutionLayout({ children }: { children: ReactNode }) {
+  if (isMockApiMode()) {
+    return <>{children}</>;
+  }
+
   const { schoolId } = await requireStudentSession();
 
   const school = await db.query.schools.findFirst({

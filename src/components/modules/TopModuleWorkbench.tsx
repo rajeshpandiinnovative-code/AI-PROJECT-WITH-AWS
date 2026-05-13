@@ -5,6 +5,9 @@ import { useSession } from "next-auth/react";
 import { FormEvent, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { MODULE_CHALLENGE_BANKS } from "@/src/lib/module-challenge-banks";
+import { evaluateMastery, type PedagogyLevel } from "@/src/lib/MockDataEngine";
+import { ProactiveNudge } from "@/src/components/ghost-mode/ProactiveNudge";
+import { AIChatPanel } from "@/src/components/ghost-mode/AIChatPanel";
 
 type TopModuleWorkbenchProps = {
   moduleSlug: string;
@@ -1014,7 +1017,7 @@ function HomeworkHelperWorkbench() {
   );
 }
 
-function VedicMathsWorkbench() {
+function VedicMathsWorkbench({ onExamFailed }: { onExamFailed?: () => void }) {
   const [lessonComplete, setLessonComplete] = useState(false);
   const [activeLevel, setActiveLevel] = useState<VedicLevel>("beginner");
   const [unlockedLevels, setUnlockedLevels] = useState<VedicLevel[]>(["beginner"]);
@@ -1027,6 +1030,7 @@ function VedicMathsWorkbench() {
   const [resultSummary, setResultSummary] = useState<string | null>(null);
   const [history, setHistory] = useState<ModuleHistoryRow[]>([]);
   const [authRequired, setAuthRequired] = useState(false);
+  const [consecutiveFails, setConsecutiveFails] = useState(0);
 
   const regenerate = (level: VedicLevel) => {
     setQuestions(Array.from({ length: 10 }, (_, i) => createQuestionByLevel(i + 1, level)));
@@ -1053,16 +1057,26 @@ function VedicMathsWorkbench() {
   const evaluate = useCallback(() => {
     if (!questions.length) return;
     const correct = questions.filter((q) => Number(answers[q.id]) === q.answer).length;
-    const currentAccuracy = Math.round((correct / questions.length) * 100);
-    const pass = currentAccuracy >= 70;
+
+    const levelMap: Record<VedicLevel, PedagogyLevel> = {
+      beginner: "foundation",
+      intermediate: "builder",
+      advanced: "master",
+    };
+    const mastery = evaluateMastery(correct, questions.length, levelMap[activeLevel], consecutiveFails);
 
     setScore(correct);
-    setAccuracy(currentAccuracy);
-    setResultSummary(pass ? "Pass: Great speed and accuracy." : "Not yet pass. Review lesson and retry.");
+    setAccuracy(mastery.score);
+    setResultSummary(mastery.feedback);
     setExamStarted(false);
+    setConsecutiveFails(mastery.consecutiveFails);
 
-    if (pass) {
+    if (mastery.passed) {
       unlockNextLevel(activeLevel);
+    }
+
+    if (mastery.triggerExpertNudge) {
+      onExamFailed?.();
     }
 
     void (async () => {
@@ -1078,8 +1092,10 @@ function VedicMathsWorkbench() {
           },
           {
             score: `${correct}/${questions.length}`,
-            accuracy: `${currentAccuracy}%`,
-            pass,
+            accuracy: `${mastery.score}%`,
+            pass: mastery.passed,
+            nextTier: mastery.nextTier,
+            expertNudge: mastery.triggerExpertNudge,
           },
         );
         setHistory(await fetchHistory("vedic-maths"));
@@ -1090,7 +1106,7 @@ function VedicMathsWorkbench() {
         }
       }
     })();
-  }, [questions, answers, activeLevel, secondsLeft]);
+  }, [questions, answers, activeLevel, secondsLeft, consecutiveFails, onExamFailed]);
 
   useEffect(() => {
     if (!examStarted) return;
@@ -1476,7 +1492,7 @@ function NotesGeneratorWorkbench() {
   );
 }
 
-function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: string; moduleTitle: string }) {
+function UniversalModuleWorkbench({ moduleSlug, moduleTitle, onExamFailed }: { moduleSlug: string; moduleTitle: string; onExamFailed?: () => void }) {
   const { data: session, status: sessionStatus } = useSession();
   const isGuest = sessionStatus === "unauthenticated";
   const needsSchool = sessionStatus === "authenticated" && !session?.user?.schoolId;
@@ -1500,6 +1516,8 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
   const [challengeAnswers, setChallengeAnswers] = useState<Record<number, string>>({});
   const [challengeScore, setChallengeScore] = useState<number | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
+  const [challengeConsecutiveFails, setChallengeConsecutiveFails] = useState(0);
+  const [masteryFeedback, setMasteryFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -1534,12 +1552,27 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
   const submitChallenge = async () => {
     const correct = challengeQuestions.filter((q) => challengeAnswers[q.id] === q.answer).length;
     setChallengeScore(correct);
+
+    const mastery = evaluateMastery(correct, challengeQuestions.length, "builder", challengeConsecutiveFails);
+    setChallengeConsecutiveFails(mastery.consecutiveFails);
+    setMasteryFeedback(mastery.feedback);
+
+    if (mastery.triggerExpertNudge) {
+      onExamFailed?.();
+    }
+
     try {
       await saveHistory(
         moduleSlug,
         moduleTitle,
         { mode: "challenge", answers: challengeAnswers },
-        { score: `${correct}/${challengeQuestions.length}`, theme: blueprint.challengeTheme },
+        {
+          score: `${correct}/${challengeQuestions.length}`,
+          theme: blueprint.challengeTheme,
+          mastery: mastery.score,
+          passed: mastery.passed,
+          expertNudge: mastery.triggerExpertNudge,
+        },
       );
       setHistory(await fetchHistory(moduleSlug));
       setAuthRequired(false);
@@ -1657,6 +1690,11 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
               <p className="text-sm text-emerald-300">
                 Score: {challengeScore}/{challengeQuestions.length}
               </p>
+              {masteryFeedback ? (
+                <div className="rounded-lg border border-cyan-500/30 bg-cyan-950/20 p-3 text-sm text-slate-200 whitespace-pre-wrap">
+                  {masteryFeedback}
+                </div>
+              ) : null}
               <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Why each answer</p>
                 <ul className="mt-2 space-y-2 text-xs text-slate-300">
@@ -1678,11 +1716,29 @@ function UniversalModuleWorkbench({ moduleSlug, moduleTitle }: { moduleSlug: str
   );
 }
 
-export function TopModuleWorkbench({ moduleSlug, moduleTitle }: TopModuleWorkbenchProps) {
+function WorkbenchBySlug({ moduleSlug, moduleTitle, onExamFailed }: TopModuleWorkbenchProps & { onExamFailed?: () => void }) {
   if (moduleSlug === "ai-study-planner") return <StudyPlannerWorkbench />;
   if (moduleSlug === "homework-helper") return <HomeworkHelperWorkbench />;
-  if (moduleSlug === "vedic-maths") return <VedicMathsWorkbench />;
+  if (moduleSlug === "vedic-maths") return <VedicMathsWorkbench onExamFailed={onExamFailed} />;
   if (moduleSlug === "ai-quiz-generator") return <QuizGeneratorWorkbench />;
   if (moduleSlug === "ai-notes-generator") return <NotesGeneratorWorkbench />;
-  return <UniversalModuleWorkbench moduleSlug={moduleSlug} moduleTitle={moduleTitle} />;
+  return <UniversalModuleWorkbench moduleSlug={moduleSlug} moduleTitle={moduleTitle} onExamFailed={onExamFailed} />;
+}
+
+export function TopModuleWorkbench({ moduleSlug, moduleTitle }: TopModuleWorkbenchProps) {
+  const [examFailed, setExamFailed] = useState(false);
+
+  const handleExamFailed = useCallback(() => {
+    setExamFailed(true);
+  }, []);
+
+  return (
+    <div className="relative">
+      <div className="mb-4">
+        <ProactiveNudge moduleSlug={moduleSlug} moduleTitle={moduleTitle} examFailed={examFailed} />
+      </div>
+      <WorkbenchBySlug moduleSlug={moduleSlug} moduleTitle={moduleTitle} onExamFailed={handleExamFailed} />
+      <AIChatPanel moduleSlug={moduleSlug} moduleTitle={moduleTitle} />
+    </div>
+  );
 }

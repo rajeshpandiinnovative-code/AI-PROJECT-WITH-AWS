@@ -12,12 +12,19 @@ import {
 import { primaryDashboardPathForPlatformRole } from "@/src/lib/post-login-redirect";
 import { IMPERSONATE_TENANT_COOKIE } from "@/src/lib/rbac";
 
+const isMock = process.env.NEXT_PUBLIC_API_MODE?.trim().toLowerCase() === "mock";
+
 export async function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const token = await getToken({ req: request });
 
   const roleDashboard = (role: unknown) =>
     primaryDashboardPathForPlatformRole(typeof role === "string" ? role : undefined);
+
+  // Ghost Mode: let /student and /modules through without auth (RDS is stopped).
+  if (isMock && !token && (pathname.startsWith("/student") || pathname.startsWith("/modules"))) {
+    return NextResponse.next();
+  }
 
   // Session required (not tied to demo mode / SHOW_DEMO — founder session grants access later).
   if (

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { TopModuleWorkbench } from "@/src/components/modules/TopModuleWorkbench";
 import { assertModulePageAccessOrRedirect, logDemoModuleView } from "@/src/lib/demo-access";
+import { isMockApiMode } from "@/src/lib/api-mode";
 import { allModules, getModuleBySlug, modulePillars } from "@/src/lib/modules";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +21,13 @@ export default async function ModuleDetailPage({ params }: ModulePageProps) {
   const learningModule = getModuleBySlug(slug);
   if (!learningModule) notFound();
 
-  const access = await assertModulePageAccessOrRedirect(slug);
-  if (access.mode === "demo") {
-    await logDemoModuleView(access.demo.id, learningModule.slug, learningModule.title);
+  const mockMode = isMockApiMode();
+
+  if (!mockMode) {
+    const access = await assertModulePageAccessOrRedirect(slug);
+    if (access.mode === "demo") {
+      await logDemoModuleView(access.demo.id, learningModule.slug, learningModule.title);
+    }
   }
 
   const pillar = modulePillars.find((item) => item.modules.some((entry) => entry.slug === slug));

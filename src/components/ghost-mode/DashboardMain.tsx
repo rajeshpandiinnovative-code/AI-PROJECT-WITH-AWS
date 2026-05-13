@@ -9,10 +9,13 @@ import {
 
 import { modulePillars } from "@/src/lib/modules";
 import { isMockApiMode } from "@/src/lib/api-mode";
-import { getMockDatabaseStats, getMockPillarStats } from "@/src/lib/MockDataEngine";
+import { getMockDatabaseStats, getMockPillarStats, getLocalSocialProof } from "@/src/lib/MockDataEngine";
 import type { MockDatabaseStats, PillarStat } from "@/src/types/modules";
+import type { LocalSocialProof } from "@/src/lib/MockDataEngine";
 import { ModuleCard } from "./ModuleCard";
 import { GhostModeFooter } from "./GhostModeFooter";
+import { GuidedTour } from "./GuidedTour";
+import { LivePulse } from "./LivePulse";
 
 const PILLAR_META: Record<string, { icon: typeof Users; color: string; gradient: string }> = {
   "pillar-a": {
@@ -70,6 +73,7 @@ export function DashboardMain() {
   const mockMode = isMockApiMode();
   const [dbStats, setDbStats] = useState<MockDatabaseStats | null>(null);
   const [pillarStats, setPillarStats] = useState<PillarStat[]>([]);
+  const [socialProof, setSocialProof] = useState<LocalSocialProof | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -77,6 +81,7 @@ export function DashboardMain() {
     if (mockMode) {
       setDbStats(getMockDatabaseStats());
       setPillarStats(getMockPillarStats());
+      setSocialProof(getLocalSocialProof());
     }
   }, [mockMode]);
 
@@ -126,9 +131,12 @@ export function DashboardMain() {
               <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
                 AI Academy Pro
               </h1>
-              <p className="text-sm text-slate-400">
-                {totalModules} Modules &middot; 4 Pillars &middot; {mockMode ? "Ghost Mode" : "Live"}
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-slate-400">
+                  {totalModules} Modules &middot; 4 Pillars &middot; {mockMode ? "Ghost Mode" : "Live"}
+                </p>
+                <LivePulse label={mockMode ? "Mock Engine" : "AWS RDS"} />
+              </div>
             </div>
           </div>
         </motion.div>
@@ -169,6 +177,26 @@ export function DashboardMain() {
               delay={0.25}
             />
           </div>
+        )}
+
+        {/* Local Social Proof — Srivilliputhur */}
+        {socialProof && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-10 overflow-hidden rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.03] p-4 backdrop-blur-xl"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                <p className="text-xs font-medium text-emerald-200">{socialProof.localActive}</p>
+              </div>
+              <div className="hidden h-4 w-px bg-emerald-500/20 sm:block" />
+              <p className="text-xs text-emerald-300/80">{socialProof.recentHighScore}</p>
+            </div>
+            <p className="mt-2 text-[10px] text-slate-500">{socialProof.institution}</p>
+          </motion.div>
         )}
 
         {/* Top Modules Bar */}
@@ -271,6 +299,9 @@ export function DashboardMain() {
         {/* Footer */}
         <GhostModeFooter />
       </div>
+
+      {/* Guided Tour Overlay */}
+      <GuidedTour />
     </div>
   );
 }

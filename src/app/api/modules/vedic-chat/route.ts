@@ -4,6 +4,11 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { isMockApiMode } from "@/src/lib/api-mode";
 import { MOCK_VEDIC_BODY } from "@/src/lib/credit-safe-mocks";
+import {
+  generateSocraticVedicResponse,
+  generateAdaptiveLesson,
+  formatAdaptiveLessonAsText,
+} from "@/src/lib/MockDataEngine";
 import { logDemoApiUse } from "@/src/lib/demo-access";
 import { cleanEnv } from "@/src/lib/env";
 import { resolveGeminiModel } from "@/src/lib/gemini-runtime-model";
@@ -98,10 +103,37 @@ export async function POST(request: Request) {
 
     if (isMockApiMode()) {
       await logDemoApiUse("api_vedic_chat", { messageCount: rest.length });
-      const lastUser = rest.filter((m) => m.role === "user").pop()?.content?.slice(0, 200) ?? "";
+      const lastUser = rest.filter((m) => m.role === "user").pop()?.content ?? "";
+
+      const multMatch = lastUser.match(/(\d+)\s*[x×*]\s*(\d+)/i)
+        ?? lastUser.match(/(\d+)\s+times\s+(\d+)/i)
+        ?? lastUser.match(/multiply\s+(\d+)\s*(?:and|by|with|,)\s*(\d+)/i);
+
+      if (multMatch) {
+        const a = parseInt(multMatch[1], 10);
+        const b = parseInt(multMatch[2], 10);
+        const phases = generateSocraticVedicResponse(a, b);
+        const socratic = phases.map((p) => `${p.label}\n${p.content}`).join("\n\n");
+        return NextResponse.json({ answer: socratic }, { status: 200 });
+      }
+
+      const techTopics = [
+        "deepseek", "canva", "scratch", "python", "chatgpt", "gemini",
+        "ai", "coding", "programming", "prompt", "design",
+      ];
+      const lower = lastUser.toLowerCase();
+      const matchedTopic = techTopics.find((t) => lower.includes(t));
+      if (matchedTopic) {
+        const gradeMatch = lastUser.match(/(?:class|grade|std|standard)\s*(\d{1,2})/i)
+          ?? lastUser.match(/(\d{1,2})(?:th|st|nd|rd)\s*(?:grade|class|std)/i);
+        const grade = gradeMatch ? parseInt(gradeMatch[1], 10) : 8;
+        const lesson = generateAdaptiveLesson(matchedTopic, grade);
+        return NextResponse.json({ answer: formatAdaptiveLessonAsText(lesson) }, { status: 200 });
+      }
+
       return NextResponse.json(
         {
-          answer: `${MOCK_VEDIC_BODY}\n\n[Mock reply to: ${lastUser}]${context ? `\nContext: ${context}` : ""}${preamble ? `\n(Preamble retained in session.)` : ""}`,
+          answer: `${MOCK_VEDIC_BODY}\n\nPowered by Pinnacle Software Solution | Mastery Verified.\nNeed help? WhatsApp 9535761292`,
         },
         { status: 200 },
       );
