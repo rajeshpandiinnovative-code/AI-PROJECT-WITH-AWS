@@ -1,17 +1,22 @@
-﻿import { PaperUpload } from "@/src/components/teacher/PaperUpload";
+﻿import { eq } from "drizzle-orm";
+import { PaperUpload } from "@/src/components/teacher/PaperUpload";
 import { ComplianceProgress } from "@/src/components/teacher/ComplianceProgress";
 import { requireTeacherSession } from "@/src/components/teacher/teacher-access";
 import { listExams, listStudents } from "@/src/db/queries";
 import { getComplianceSummary } from "@/src/app/actions/compliance";
+import { schools } from "@/src/db/schema";
+import { db } from "@/src/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function TeacherDashboardPage() {
-  const { tenantId } = await requireTeacherSession();
-  const [studentRows, examRows, complianceSummary] = await Promise.all([
+  const { session, tenantId } = await requireTeacherSession();
+  const teacherId = session.user.platformUserId ?? session.user.id ?? "";
+  const [studentRows, examRows, complianceSummary, schoolRow] = await Promise.all([
     listStudents(tenantId),
     listExams(tenantId),
-    getComplianceSummary(),
+    getComplianceSummary(teacherId, tenantId),
+    db.query.schools.findFirst({ where: eq(schools.id, tenantId), columns: { name: true } }),
   ]);
   const students = studentRows.map((s) => ({ id: s.id, name: s.name, rollNo: s.rollNo }));
   const exams = examRows.map((e) => ({
@@ -31,7 +36,11 @@ export default async function TeacherDashboardPage() {
           Lists below are loaded with your signed-in teacher session — same schoolId as `/api/scan-paper`.
         </p>
       </header>
-      <ComplianceProgress summary={complianceSummary} />
+      <ComplianceProgress
+        summary={complianceSummary}
+        students={students.map((s) => ({ id: s.id, name: s.name }))}
+        schoolName={schoolRow?.name}
+      />
       <PaperUpload students={students} exams={exams} />
     </div>
   );

@@ -462,11 +462,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               {impersonatedTenantId ? (
                 <span className="font-mono"> (impersonating {impersonatedTenantId})</span>
               ) : null}
-              . Nationwide dashboard:{" "}
             </span>
-            <Link href="/insights" className="font-semibold text-amber-300 underline">
-              /insights
-            </Link>
           </div>
         ) : null}
         <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{school.name}</h1>

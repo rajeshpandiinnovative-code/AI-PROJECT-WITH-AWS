@@ -4,6 +4,7 @@ import { importStudentsCsvAction } from "@/src/app/(auth)/school-admin/actions";
 import { ModuleToggle } from "@/src/components/school-admin/ModuleToggle";
 import { requireSchoolAdminSession } from "@/src/components/school-admin/school-admin-access";
 import { StudentTable } from "@/src/components/school-admin/StudentTable";
+import { StandardPerformanceChart } from "@/src/components/admin/StandardPerformanceChart";
 import {
   analyticsEvents,
   moduleHistories,
@@ -13,6 +14,7 @@ import {
 } from "@/src/db/schema";
 import { db } from "@/src/lib/db";
 import { allModules } from "@/src/lib/modules";
+import { getStandardWisePerformance } from "@/src/app/actions/compliance";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,8 @@ export default async function SchoolAdminOperationsPage({ searchParams }: PagePr
   const sp = await searchParams;
   const { tenantId, session } = await requireSchoolAdminSession();
   const tenantText = tenantId;
+  const userRole = (session.user?.role ?? "").toUpperCase();
+  const isPrincipalOrAbove = userRole === "PRINCIPAL" || userRole === "MANAGEMENT" || userRole === "SUPER_ADMIN";
 
   const [studentCountRow] = await db
     .select({ n: count() })
@@ -105,6 +109,11 @@ export default async function SchoolAdminOperationsPage({ searchParams }: PagePr
   const pendingPaperScans = Number(scanRow?.n ?? 0);
   const activeTeachersSession = activeTeacherIds.size;
 
+  let standardData: Awaited<ReturnType<typeof getStandardWisePerformance>> | null = null;
+  if (isPrincipalOrAbove) {
+    standardData = await getStandardWisePerformance(tenantId);
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-3 py-5 sm:px-4">
       {sp.import === "no_file" || sp.import === "empty" ? (
@@ -145,6 +154,15 @@ export default async function SchoolAdminOperationsPage({ searchParams }: PagePr
           hint={`Distinct teacher logins vs roster ${teachersRoster}.`}
         />
       </section>
+
+      {isPrincipalOrAbove && (
+        <section id="standard-performance" className="scroll-mt-4">
+          <StandardPerformanceChart
+            schoolId={tenantId}
+            initialData={standardData?.success ? standardData.data : null}
+          />
+        </section>
+      )}
 
       <section id="students" className="scroll-mt-4 space-y-2">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-700">Students</h2>

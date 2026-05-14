@@ -7,7 +7,7 @@ import { getDefaultFilteredPillars, visibilityRoleFromSession } from "@/src/lib/
 import { insertDemoSessionEvent } from "@/src/lib/demo-session";
 import { resolveSchoolUnlockedFromSession } from "@/src/lib/subscription";
 import { isMockApiMode } from "@/src/lib/api-mode";
-import { modulePillars } from "@/src/lib/modules";
+import { getVisiblePillars } from "@/src/lib/modules";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export default async function ModulesPage() {
               <p className="mt-2 text-sm text-slate-400">21 modules across 4 pillars — fully operational in mock mode.</p>
             </div>
             <div className="mt-10 space-y-8">
-              {modulePillars.map((pillar) => (
+              {getVisiblePillars().map((pillar) => (
                 <section
                   key={pillar.id}
                   className={`rounded-2xl border border-slate-800 bg-gradient-to-br ${pillar.accentClass} p-6 ring-1 ${pillar.ringClass}`}

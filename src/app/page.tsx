@@ -5,7 +5,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { CoachingHeroBanner } from "@/src/components/landing/CoachingHeroBanner";
 import { PublicSiteHeader } from "@/src/components/landing/PublicSiteHeader";
 import { WorkflowSlider } from "@/src/components/landing/WorkflowSlider";
-import { modulePillars } from "@/src/lib/modules";
+import { getVisiblePillars } from "@/src/lib/modules";
 
 export default function Home() {
   return (
@@ -62,7 +62,7 @@ export default function Home() {
             </div>
 
             <div className="mt-12 space-y-10">
-              {modulePillars.map((pillar) => (
+              {getVisiblePillars().map((pillar) => (
                 <section
                   key={pillar.id}
                   className={`rounded-2xl border border-slate-800/90 bg-gradient-to-br ${pillar.accentClass} p-6 shadow-lg shadow-black/20 ring-1 sm:p-7 ${pillar.ringClass}`}

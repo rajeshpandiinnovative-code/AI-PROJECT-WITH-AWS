@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
+import { auth } from "@/auth";
 import { TopModuleWorkbench } from "@/src/components/modules/TopModuleWorkbench";
 import { assertModulePageAccessOrRedirect, logDemoModuleView } from "@/src/lib/demo-access";
 import { isMockApiMode } from "@/src/lib/api-mode";
@@ -20,6 +21,14 @@ export default async function ModuleDetailPage({ params }: ModulePageProps) {
   const { slug } = await params;
   const learningModule = getModuleBySlug(slug);
   if (!learningModule) notFound();
+
+  if (learningModule.founderOnly) {
+    const session = await auth();
+    const role = (session?.user?.role ?? "").toUpperCase();
+    if (role !== "SUPER_ADMIN") {
+      redirect("/modules");
+    }
+  }
 
   const mockMode = isMockApiMode();
 

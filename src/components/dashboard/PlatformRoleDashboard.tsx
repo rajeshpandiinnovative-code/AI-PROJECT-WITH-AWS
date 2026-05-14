@@ -99,14 +99,6 @@ export function PlatformRoleDashboard({
 
         <DashboardInsightCharts payload={charts} />
 
-        {showMasterInsights ? (
-          <div className="mt-8 rounded-xl border border-amber-500/40 bg-amber-950/25 px-4 py-3 text-sm text-amber-100">
-            <span className="font-semibold text-amber-200">Super Admin</span> — open the nationwide insights dashboard:{" "}
-            <Link href="/insights" className="font-semibold text-amber-300 underline">
-              /insights
-            </Link>
-          </div>
-        ) : null}
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <Link

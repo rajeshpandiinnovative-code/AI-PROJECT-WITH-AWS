@@ -26,10 +26,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Session required (not tied to demo mode / SHOW_DEMO — founder session grants access later).
   if (
     !token &&
     (pathname.startsWith("/admin") ||
+      pathname.startsWith("/insights") ||
       pathname.startsWith("/school") ||
       pathname.startsWith("/school-admin") ||
       pathname.startsWith("/management") ||
@@ -97,21 +97,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/management") || pathname.startsWith("/school-admin")) {
-    if (isLearnerOrClassroomStaff(jwtRole) && !isJwtSuperAdmin(jwtRole)) {
-      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
-    }
+  if (pathname.startsWith("/insights")) {
+    return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
   }
 
   if (pathname.startsWith("/management")) {
     if (!canAccessManagementPath(jwtRole)) {
-      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
+      const redirectUrl = new URL(roleDashboard(token.role), request.url);
+      redirectUrl.searchParams.set("access_error", "admin_clearance_required");
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
   if (pathname.startsWith("/school-admin")) {
     if (!canAccessSchoolAdminPath(jwtRole)) {
-      return NextResponse.redirect(new URL(roleDashboard(token.role), request.url));
+      const redirectUrl = new URL(roleDashboard(token.role), request.url);
+      redirectUrl.searchParams.set("access_error", "admin_clearance_required");
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
@@ -119,10 +121,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Use explicit segments so `/school/dashboard` always hits middleware before RSC (stable redirects + auth gate).
   matcher: [
     "/dashboard",
     "/admin/:path*",
+    "/insights",
+    "/insights/:path*",
     "/school/dashboard",
     "/school/:path*",
     "/school-admin",

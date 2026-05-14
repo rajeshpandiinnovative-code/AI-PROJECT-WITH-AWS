@@ -77,6 +77,15 @@ function parseBody(json: unknown): { messages: ChatMessage[]; context?: string }
 export async function POST(request: Request) {
   try {
     const session = await auth();
+
+    const userRole = (session?.user?.role ?? "").toUpperCase();
+    if (userRole !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        { error: "This module is currently restricted to platform administrators." },
+        { status: 403 },
+      );
+    }
+
     const blocked = await paidAccessGuardResponse(session);
     if (blocked) {
       return blocked;

@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { MasterInsightsDashboard } from "@/src/components/insights/MasterInsightsDashboard";
 import { fetchInsightsGeo, fetchRevenueSeries } from "@/src/lib/insights-data";
 import { isFounderSuperAdmin } from "@/src/lib/rbac";
+import { primaryDashboardPathForPlatformRole } from "@/src/lib/post-login-redirect";
 
 export const metadata: Metadata = {
   title: "Insights · AI Academy Pro",
@@ -17,7 +18,9 @@ export const dynamic = "force-dynamic";
 export default async function InsightsPage() {
   const session = await auth();
   if (!isFounderSuperAdmin(session)) {
-    redirect("/");
+    const role = session?.user?.role;
+    const dest = primaryDashboardPathForPlatformRole(typeof role === "string" ? role : undefined);
+    redirect(`${dest}?access_error=admin_clearance_required`);
   }
 
   const [geo, revenueSeries] = await Promise.all([

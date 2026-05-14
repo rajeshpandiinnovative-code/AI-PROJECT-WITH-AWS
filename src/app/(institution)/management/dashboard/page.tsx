@@ -7,17 +7,24 @@ import {
   getTopNeededInterventionModules,
   listPriorityInterventionTasks,
 } from "@/src/db/queries";
+import { eq } from "drizzle-orm";
+import { getSchoolComplianceMetrics } from "@/src/app/actions/compliance";
+import { SchoolLeaderboard } from "@/src/components/admin/SchoolLeaderboard";
+import { schools } from "@/src/db/schema";
+import { db } from "@/src/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export default async function ManagementCommandCenterPage() {
   const { tenantId: schoolId } = await requireManagementSession();
 
-  const [totalStudents, studentsWithActiveTasks, topModules, feedTasks] = await Promise.all([
+  const [totalStudents, studentsWithActiveTasks, topModules, feedTasks, complianceMetrics, schoolRow] = await Promise.all([
     countStudentsForSchool(schoolId),
     countDistinctStudentsWithAssignedInterventions(schoolId),
     getTopNeededInterventionModules(schoolId, 6),
     listPriorityInterventionTasks(schoolId, 10),
+    getSchoolComplianceMetrics(schoolId),
+    db.query.schools.findFirst({ where: eq(schools.id, schoolId), columns: { name: true } }),
   ]);
 
   const interventionRatePct =
@@ -41,6 +48,8 @@ export default async function ManagementCommandCenterPage() {
           Live impact metrics for your school. Optimized for laptop and tablet demos on-site.
         </p>
       </header>
+
+      <SchoolLeaderboard metrics={complianceMetrics} schoolName={schoolRow?.name} />
 
       <section
         aria-labelledby="school-overview-heading"

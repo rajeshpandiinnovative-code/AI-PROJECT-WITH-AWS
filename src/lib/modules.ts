@@ -25,6 +25,8 @@ export type LearningModule = {
   description: string;
   outcome: string;
   iconKey: ModuleIconKey;
+  /** If true, module is only visible to SUPER_ADMIN / FOUNDER role. Hidden from all other tiers. */
+  founderOnly?: boolean;
 };
 
 export type ModulePillar = {
@@ -50,6 +52,7 @@ export const modulePillars: ModulePillar[] = [
         description: "Fast mental arithmetic techniques.",
         outcome: "Students reduce solve-time in arithmetic-heavy sections.",
         iconKey: "calculator",
+        founderOnly: true,
       },
       {
         slug: "speed-tricks",
@@ -71,6 +74,7 @@ export const modulePillars: ModulePillar[] = [
         description: "Readable writing with structure.",
         outcome: "Cleaner presentation and better evaluator readability.",
         iconKey: "hand",
+        founderOnly: true,
       },
       {
         slug: "neet-jee-daily-mcqs",
@@ -223,6 +227,27 @@ export const modulePillars: ModulePillar[] = [
 ];
 
 export const allModules: LearningModule[] = modulePillars.flatMap((pillar) => pillar.modules);
+
+/**
+ * Filter modules visible to a given role.
+ * Modules marked `founderOnly` are hidden from all tiers except SUPER_ADMIN.
+ */
+export function getVisibleModules(role?: string): LearningModule[] {
+  const normalizedRole = (role ?? "").toUpperCase();
+  if (normalizedRole === "SUPER_ADMIN") return allModules;
+  return allModules.filter((m) => !m.founderOnly);
+}
+
+/**
+ * Filter pillars, removing founderOnly modules from each pillar for non-SUPER_ADMIN roles.
+ */
+export function getVisiblePillars(role?: string): ModulePillar[] {
+  const normalizedRole = (role ?? "").toUpperCase();
+  if (normalizedRole === "SUPER_ADMIN") return modulePillars;
+  return modulePillars
+    .map((p) => ({ ...p, modules: p.modules.filter((m) => !m.founderOnly) }))
+    .filter((p) => p.modules.length > 0);
+}
 
 export function getModuleBySlug(slug: string): LearningModule | undefined {
   return allModules.find((module) => module.slug === slug);
