@@ -1,12 +1,18 @@
 ﻿import { PaperUpload } from "@/src/components/teacher/PaperUpload";
+import { ComplianceProgress } from "@/src/components/teacher/ComplianceProgress";
 import { requireTeacherSession } from "@/src/components/teacher/teacher-access";
 import { listExams, listStudents } from "@/src/db/queries";
+import { getComplianceSummary } from "@/src/app/actions/compliance";
 
 export const dynamic = "force-dynamic";
 
 export default async function TeacherDashboardPage() {
   const { tenantId } = await requireTeacherSession();
-  const [studentRows, examRows] = await Promise.all([listStudents(tenantId), listExams(tenantId)]);
+  const [studentRows, examRows, complianceSummary] = await Promise.all([
+    listStudents(tenantId),
+    listExams(tenantId),
+    getComplianceSummary(),
+  ]);
   const students = studentRows.map((s) => ({ id: s.id, name: s.name, rollNo: s.rollNo }));
   const exams = examRows.map((e) => ({
     id: e.id,
@@ -25,6 +31,7 @@ export default async function TeacherDashboardPage() {
           Lists below are loaded with your signed-in teacher session — same schoolId as `/api/scan-paper`.
         </p>
       </header>
+      <ComplianceProgress summary={complianceSummary} />
       <PaperUpload students={students} exams={exams} />
     </div>
   );

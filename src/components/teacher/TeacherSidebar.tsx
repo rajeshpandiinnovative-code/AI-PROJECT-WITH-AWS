@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ScanLine } from "lucide-react";
+import { BarChart3, ScanLine, ShieldCheck } from "lucide-react";
 
 const items = [
   { href: "/teacher/dashboard", label: "Scan & grade", icon: ScanLine },
   { href: "/school/dashboard", label: "School analytics", icon: BarChart3 },
+  { href: "/teacher/dashboard", label: "Compliance", icon: ShieldCheck },
 ] as const;
 
 export function TeacherSidebar() {

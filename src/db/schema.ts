@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -404,3 +405,34 @@ export const appSettings = pgTable("app_settings", {
   value: text("value").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+/**
+ * CBSE compliance tracking: each row is one teaching session logged by a teacher.
+ * `isCompliant` is derived at insert time (masteryScore >= 70).
+ * Aggregate `sessionDuration` per student to track the 20-hour mandate.
+ */
+export const lessonLogs = pgTable(
+  "lesson_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    schoolId: uuid("school_id")
+      .notNull()
+      .references(() => schools.id, { onDelete: "cascade" }),
+    teacherId: uuid("teacher_id")
+      .notNull()
+      .references(() => platformUsers.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    cbseSkillCode: varchar("cbse_skill_code", { length: 64 }).notNull(),
+    sessionDuration: integer("session_duration").notNull(),
+    masteryScore: doublePrecision("mastery_score").notNull(),
+    isCompliant: boolean("is_compliant").notNull(),
+  },
+  (table) => ({
+    schoolIdx: index("lesson_logs_school_id_idx").on(table.schoolId),
+    teacherIdx: index("lesson_logs_teacher_id_idx").on(table.teacherId),
+    studentIdx: index("lesson_logs_student_id_idx").on(table.studentId),
+  }),
+);
