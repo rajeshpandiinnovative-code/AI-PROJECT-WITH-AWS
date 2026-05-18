@@ -1,41 +1,29 @@
-import { NextResponse } from "next/server";
-import { z } from "zod";
+import { NextRequest, NextResponse } from "next/server";
+import { recordAnalyticsEvent } from "../../../../lib/analytics";
+import { auth } from "../../../../lib/auth";
 
-import { clientIp, recordAnalyticsEvent } from "@/src/lib/analytics";
-
-export const dynamic = "force-dynamic";
-
-const bodySchema = z.object({
-  eventType: z.string().min(1).max(64),
-  payload: z.record(z.string(), z.any()).optional(),
-  path: z.string().max(512).optional(),
-  referrer: z.string().max(2048).optional(),
-});
-
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const json: unknown = await request.json();
-    const parsed = bodySchema.safeParse(json);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
-    }
+    const session = await auth();
+    const body = await req.json();
+    
+    const { eventType, payload } = body;
 
-    const { eventType, payload, path, referrer } = parsed.data;
-    const merged = {
-      ...(payload ?? {}),
-      ...(path ? { path } : {}),
-      ...(referrer ? { referrer } : {}),
-    };
+    if (!eventType) {
+      return NextResponse.json({ error: "Missing eventType" }, { status: 400 });
+    }
 
     await recordAnalyticsEvent({
       eventType,
-      payload: merged,
-      ip: clientIp(request),
-      userAgent: request.headers.get("user-agent") ?? undefined,
+      payload,
+      userId: session?.user?.id,
+      ip: req.ip || req.headers.get("x-forwarded-for") || "unknown",
+      userAgent: req.headers.get("user-agent") || "unknown",
     });
 
-    return NextResponse.json({ ok: true }, { status: 200 });
-  } catch {
-    return NextResponse.json({ error: "Unable to record event" }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("[Analytics API] Route Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
